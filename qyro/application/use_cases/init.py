@@ -215,15 +215,15 @@ class InitProjectUseCase:
 
         self.ui.success(
             f"\n✓ Project initialized successfully in "
-            f"[bold cyan]{target_dir}/[/bold cyan]"
+            f"[bold #ff8c00]{target_dir}/[/bold #ff8c00]"
         )
         self.ui.info("\nNext steps:")
 
         if target_dir != ".":
             self.ui.info(
-                f"  [bold green]cd {target_dir}[/bold green]"
+                f"  [bold #ff8c00]cd {target_dir}[/bold #ff8c00]"
             )
 
         self.ui.info(
-            "  [bold green]qyro start[/bold green]"
+            "  [bold #ff8c00]qyro start[/bold #ff8c00]"
         )

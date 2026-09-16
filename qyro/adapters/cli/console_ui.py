@@ -3,13 +3,13 @@ Concrete presentation adapter implementing UserInteractionPort
 using Rich and Questionary.
 """
 
-from typing import Sequence
 import random
 from pathlib import Path
 from typing import Sequence
 
 import questionary
 from prompt_toolkit.styles import Style
+from rich.theme import Theme
 from rich.align import Align
 from rich.console import Console, Group
 from rich.panel import Panel
@@ -18,18 +18,29 @@ from rich.table import Table
 from rich.text import Text
 
 QUESTIONARY_STYLE = Style([
-    ("qmark", "fg:#ff00ff bold"),
-    ("question", "fg:#00ffff bold"),
-    ("answer", "fg:#00ffff bold"),
-    ("pointer", "fg:#ffff00 bold"),
-    ("highlighted", "fg:#2fe784 bold"),
-    ("selected", "fg:#2fe784 bold"),
+    ("qmark", "fg:#c08457 bold"),
+    ("question", "fg:#f1f5f9 bold"),
+    ("answer", "fg:#fdba74 bold"),
+    ("pointer", "fg:#fb923c bold"),
+    ("highlighted", "fg:#fb923c bg:default bold"), 
+    ("selected", "fg:#fdba74 bg:default"),
+    ("instruction", "fg:#9ca3af"),
 ])
 
 
+custom_theme = Theme(
+    {
+        "prompt.choices": "bold white",
+        "prompt.default": "bold #ff8c00",
+    }
+)
 class RichConsoleUI:
     def __init__(self, console: Console | None = None):
-        self._console = console or Console()
+        self._console = console or Console(
+            force_terminal=True,
+            color_system="truecolor",
+            theme=custom_theme,
+        )
 
     def welcome(self) -> None:
         messages = [
@@ -50,7 +61,7 @@ class RichConsoleUI:
             "██║▄▄ ██║  ╚██╔╝  ██╔══██╗██║   ██║\n"
             "╚██████╔╝   ██║   ██║  ██║╚██████╔╝\n"
             " ╚══▀▀═╝    ╚═╝   ╚═╝  ╚═╝ ╚═════╝\n",
-            style="bold green",
+            style="bold #ff8c00",
         )
 
         title = Text(message, style="bold white")
@@ -68,7 +79,7 @@ class RichConsoleUI:
         self._console.print(
             Panel(
                 content,
-                border_style="green",
+                border_style="#ff8c00",
                 padding=(1, 4),
             )
         )
@@ -83,6 +94,7 @@ class RichConsoleUI:
             f"[bold]{prompt}[/bold]",
             default=default,
             show_default=show_default,
+            console=self._console
         )
 
     def ask_choice(
@@ -97,7 +109,7 @@ class RichConsoleUI:
             return default
 
         answer = questionary.select(
-            f"{prompt} [{'/'.join(options)}] ({default}):",
+            prompt,
             choices=options,
             default=default or options[0],
             style=QUESTIONARY_STYLE,
@@ -137,8 +149,9 @@ class RichConsoleUI:
         default: bool = True,
     ) -> bool:
         return Confirm.ask(
-            f"[bold yellow]{prompt}[/bold yellow]",
+            f"[bold #fff]{prompt}[/bold #fff]",
             default=default,
+            console=self._console,
         )
 
     def show_summary(
@@ -155,14 +168,14 @@ class RichConsoleUI:
         for label, value in fields.items():
             table.add_row(
                 f"{label}:",
-                f"[cyan]{value}[/cyan]",
+                f"[#fdba74]{value}[/#fdba74]",
             )
 
         self._console.print(
             Panel(
                 table,
                 title=f"[bold]{title}[/bold]",
-                border_style="blue",
+                border_style="#ff8c00",
             )
         )
 
@@ -171,17 +184,17 @@ class RichConsoleUI:
 
     def success(self, message: str) -> None:
         self._console.print(
-            f"[bold green]{message}[/bold green]"
+            f"[bold #fff]{message}[/bold #fff]"
         )
 
     def warning(self, message: str) -> None:
         self._console.print(
-            f"[yellow]{message}[/yellow]"
+            f"[#fdba74]{message}[/#fdba74]"
         )
 
     def progress(self, message: str) -> None:
         self._console.print(
-            f"⏳ {message}"
+            f"[#fdba74]⏳ {message}[/#fdba74]"
         )
 
     def error(self, message: str) -> None:

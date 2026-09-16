@@ -1,0 +1,45 @@
+"""
+qyro.adapters.templates.bundled
+
+Fallback template provider for offline environments.
+"""
+
+
+from pathlib import Path
+
+from qyro.application.ports import TemplateProviderPort
+from qyro.domain.errors import TemplateUnavailableError
+from qyro.domain.project import Binding, TargetPlatform
+from qyro.domain.version import Version
+
+
+class BundledTemplateProvider(TemplateProviderPort):
+    def __init__(self, templates_dir: Path):
+        self.templates_dir = templates_dir
+
+    def resolve_template(
+        self,
+        binding: Binding,
+        target_platform: TargetPlatform,
+        version: Version | None = None,
+    ) -> Path:
+        platform_name = {
+            TargetPlatform.IPHONE: "ios",
+            TargetPlatform.ANDROID: "android",
+            TargetPlatform.X86: "x86_64",
+        }[target_platform]
+
+        template_dir = (
+            self.templates_dir
+            / binding.value.lower()
+            / platform_name
+        )
+
+        if not template_dir.is_dir():
+            raise TemplateUnavailableError(
+                f"No bundled template is available for "
+                f"{binding.value} on {platform_name}."
+            )
+
+        return template_dir
+

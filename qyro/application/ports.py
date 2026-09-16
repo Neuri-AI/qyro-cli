@@ -33,6 +33,8 @@ from qyro.domain.project import (
 class UserInteractionPort(Protocol):
     """Everything application use cases need from a human."""
 
+    def welcome(self) -> None: ...
+
     def ask_text(
         self,
         prompt: str,

@@ -4,14 +4,18 @@ using Rich and Questionary.
 """
 
 from typing import Sequence
+import random
+from pathlib import Path
+from typing import Sequence
 
 import questionary
 from prompt_toolkit.styles import Style
-from rich.console import Console
+from rich.align import Align
+from rich.console import Console, Group
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
-
+from rich.text import Text
 
 QUESTIONARY_STYLE = Style([
     ("qmark", "fg:#ff00ff bold"),
@@ -26,6 +30,48 @@ QUESTIONARY_STYLE = Style([
 class RichConsoleUI:
     def __init__(self, console: Console | None = None):
         self._console = console or Console()
+
+    def welcome(self) -> None:
+        messages = [
+            "What are we building today?",
+            "What will you build today?",
+            "Let's build something great.",
+            "Your next project starts here.",
+        ]
+
+        message = random.choice(messages)
+        directory = Path.cwd().name
+
+        logo = Text(
+            "\n"
+            " ██████╗ ██╗   ██╗██████╗  ██████╗\n"
+            "██╔═══██╗╚██╗ ██╔╝██╔══██╗██╔═══██╗\n"
+            "██║   ██║ ╚████╔╝ ██████╔╝██║   ██║\n"
+            "██║▄▄ ██║  ╚██╔╝  ██╔══██╗██║   ██║\n"
+            "╚██████╔╝   ██║   ██║  ██║╚██████╔╝\n"
+            " ╚══▀▀═╝    ╚═╝   ╚═╝  ╚═╝ ╚═════╝\n",
+            style="bold green",
+        )
+
+        title = Text(message, style="bold white")
+        subtitle = Text(
+            f"Creating your next application in {directory}/",
+            style="dim",
+        )
+
+        content = Group(
+            Align.center(logo),
+            Align.center(title),
+            Align.center(subtitle),
+        )
+
+        self._console.print(
+            Panel(
+                content,
+                border_style="green",
+                padding=(1, 4),
+            )
+        )
 
     def ask_text(
         self,
@@ -125,7 +171,7 @@ class RichConsoleUI:
 
     def success(self, message: str) -> None:
         self._console.print(
-            f"\n🎉 [bold green]{message}[/bold green]"
+            f"[bold green]{message}[/bold green]"
         )
 
     def warning(self, message: str) -> None:

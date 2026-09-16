@@ -50,10 +50,11 @@ class InitProjectUseCase:
         if self.fs.exists(str(src_path)):
             raise ProjectAlreadyExistsError(str(destination))
 
-        self.ui.info(
-            "✨ Welcome to "
-            "[bold green]Qyro Engine Project Generator[/bold green] ✨\n"
-        )
+        # Get host name of the user
+        import getpass
+        host_name = getpass.getuser()
+
+        self.ui.welcome()
 
         platform_options = {
             "iPhone": TargetPlatform.IPHONE,

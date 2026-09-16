@@ -51,7 +51,7 @@ class InitCommand:
     def execute(args: argparse.Namespace) -> int:
         get_container().init_project_use_case.execute(
             target_dir=args.name,
-            preselected_binding=args.binding,
+            default_binding=args.binding,
             template_version=args.template_version,
         )
 

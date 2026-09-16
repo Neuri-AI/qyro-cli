@@ -22,10 +22,12 @@ def to_camel_case(name: str) -> str:
     parts = name.strip().replace("-", " ").replace("_", " ").split()
     return "".join(word[:1].upper() + word[1:] for word in parts)
 
+
 class AddonModule(str, Enum):
     HOTRL = "hotrl"
     PYDUX = "pydux"
-    SENTRY = "sentry"
+    SENTRY = "sentry-sdk"
+    REQUESTS = "requests"
 
 
 class TargetPlatform(str, Enum):
@@ -91,6 +93,7 @@ class Binding(str, Enum):
 
         return False
 
+
 @dataclass
 class ProjectConfig:
     """Everything `qyro init` needs to scaffold a project."""
@@ -130,15 +133,24 @@ class ProjectConfig:
             "author": self.author,
             "mac_bundle_identifier": self.mac_bundle_identifier,
             "python_bindings": self.binding.value,
-            "addons": ", ".join(addon.value for addon in self.addons) or "(none)",
+            "addons": [addon.value for addon in self.addons], # for qyro_runtime info
+
+            # for pyproject.toml
+            "addon_dependencies": ",\n".join(
+                f'    "{addon.value}"'
+                for addon in self.addons
+            ),
             "target_platform": self.target_platform.value,
+            "version": str(self.version),
         }
 
     def as_base_settings(self) -> Dict[str, object]:
-        """The keys written into src/build/settings/base.json."""
+        """The keys written into <project_location>/settings/base.json."""
         return {
-            "binding": self.binding.value,
+            "app_name": self.app_name,
+            "author": self.author,
             "version": str(self.version),
+            "binding": self.binding.value,
             "hidden_imports": list(self.DEFAULT_HIDDEN_IMPORTS),
         }
 
@@ -183,5 +195,3 @@ class ComponentSpec:
             "Name": self.name,
             "Widget": self.inherits_from,
         }
-
-

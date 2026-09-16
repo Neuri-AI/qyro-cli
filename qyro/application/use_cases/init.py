@@ -44,11 +44,11 @@ class InitProjectUseCase:
     def execute(
         self,
         target_dir: str = ".",
-        preselected_binding: str | None = None,
+        default_binding: str | None = None,
         template_version: str | None = None,
     ) -> None:
         destination = Path(target_dir).resolve()
-        src_path = destination / "src"
+        src_path = destination / "main.py"
 
         if self.fs.exists(str(src_path)):
             raise ProjectAlreadyExistsError(str(destination))
@@ -79,8 +79,8 @@ class InitProjectUseCase:
             if binding.supports(target_platform)
         ]
 
-        if preselected_binding:
-            binding = Binding.parse(preselected_binding)
+        if default_binding:
+            binding = Binding.parse(default_binding)
 
             if binding not in available_bindings:
                 raise ValueError(
@@ -116,6 +116,7 @@ class InitProjectUseCase:
             "Hot Reloading (⚠️ Experimental)": AddonModule.HOTRL,
             "Pydux (Redux-style State Management)": AddonModule.PYDUX,
             "Sentry (Crash Reporting Integration)": AddonModule.SENTRY,
+            "Requests (HTTP Library)": AddonModule.REQUESTS,
         }
 
         if target_platform in (
@@ -216,13 +217,13 @@ class InitProjectUseCase:
             destination,
         )
 
-        """self.fs.write_file(
-            str(destination / "src" / "build" / "base.json"),
-            json.dumps(
-                config.as_base_settings(),
-                indent=2,
-            ),
-        )"""
+        self.fs.render_tree(
+            str(destination),
+            {
+                **config.as_template_variables(),
+                **config.as_base_settings(),
+            },
+        )
 
         self.ui.success(
             f"\n🎉 Project initialized successfully in "

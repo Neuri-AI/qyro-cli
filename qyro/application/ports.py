@@ -112,6 +112,8 @@ class FileSystemPort(Protocol):
 
     def current_user(self) -> str: ...
 
+    def render_tree(self, root: str, variables: dict[str, object], exclude: Sequence[str] | None = None) -> None: ...
+
 
 class ProjectScaffolderPort(Protocol):
     """Materializes a project from a template."""

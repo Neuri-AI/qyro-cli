@@ -5,6 +5,8 @@ The global mutable SETTINGS dict is now reached through SettingsRepository, so
 use cases depend on an interface they can fake instead of on module state.
 """
 
+import shutil
+import getpass
 import json
 from getpass import getuser
 from os import listdir, mkdir, remove, unlink
@@ -15,14 +17,21 @@ from string import Template
 from typing import Dict, List
 
 from qyro.domain.errors import MissingSettingError
-from qyro.domain.project import ComponentSpec
+from qyro.domain.project import ComponentSpec, ProjectConfig
 
-BASE_SETTINGS = "src/build/settings/base.json"
-
-
-import getpass
-import shutil
-from pathlib import Path
+BASE_SETTINGS = "settings/base.json"
+TEXT_EXTENSIONS = {
+    ".cfg",
+    ".ini",
+    ".json",
+    ".md",
+    ".py",
+    ".toml",
+    ".txt",
+    ".xml",
+    ".yaml",
+    ".yml",
+}
 
 
 class OsFileSystem:
@@ -35,7 +44,7 @@ class OsFileSystem:
     def make_dir(self, path: str) -> None:
         Path(path).mkdir(parents=True, exist_ok=True)
 
-    def write_file(self, path: str, content: str) -> None:
+    def write_text(self, path: str, content: str) -> None:
         target = Path(path)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
@@ -58,6 +67,33 @@ class OsFileSystem:
             return getpass.getuser()
         except Exception:
             return "Unknown"
+
+    def render_tree(
+        self,
+        root: str,
+        variables: dict[str, object],
+        exclude: set[str] | None = None,
+    ) -> None:
+        root_path = Path(root)
+        excluded = exclude or set()
+
+        for path in root_path.rglob("*"):
+            if not path.is_file():
+                continue
+
+            if str(path.relative_to(root_path)) in excluded:
+                continue
+
+            if path.suffix.lower() not in TEXT_EXTENSIONS:
+                    continue
+
+            content = path.read_text(encoding="utf-8")
+            rendered = Template(content).substitute(variables)
+
+            path.write_text(
+                rendered,
+                encoding="utf-8",
+            )
 
 
 class SettingsRepository:
@@ -95,10 +131,6 @@ class SettingsRepository:
         from qyro import path
         from qyro.builtin_commands._util import update_json
         update_json(path(BASE_SETTINGS), values)
-
-
-
-
 
 
 class ComponentFileWriter:

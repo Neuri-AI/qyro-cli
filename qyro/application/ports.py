@@ -191,17 +191,11 @@ class PackageMetadataPort(Protocol):
 
 # --- Dependencies & packages -----------------------------------------------
 
+class DependencyInstallerPort(Protocol):
+    """Installs dependencies declared by a project."""
 
-class ModuleRegistryPort(Protocol):
-    """Checks whether Python modules/packages are available."""
+    def install(self, project_dir: str) -> None: ...
 
-    def is_installed(self, module_name: str) -> bool: ...
-
-
-class PackageInstallerPort(Protocol):
-    """Installs Python packages required by Qyro."""
-
-    def install(self, package: str) -> None: ...
 
 
 # --- Processes & application execution -------------------------------------
@@ -334,6 +328,7 @@ class ProgressPort(Protocol):
 
     def stop(self) -> None:
         ...
+
 
 class MobileBuildPort(Protocol):
     """

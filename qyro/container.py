@@ -14,9 +14,10 @@ from qyro.adapters.persistence.storage import (
 )
 from qyro.adapters.process.runners import (
     ImportlibModuleRegistry,
-    PipPackageInstaller,
     SubprocessAppRunner,
+    SubprocessRunner,
 )
+from qyro.adapters.process.dependencies import DependencyInstaller
 from qyro.adapters.templates.bundled import BundledTemplateProvider
 from qyro.adapters.templates.fallback import FallbackTemplateProvider
 from qyro.adapters.templates.github_cached import (
@@ -46,8 +47,11 @@ class Container:
         self.ui = RichConsoleUI()
         self.fs = OsFileSystem()
         self.settings = SettingsRepository()
-        self.runner = SubprocessAppRunner()
-        self.installer = PipPackageInstaller()
+        self.app_runner = SubprocessAppRunner()
+        self.subprocess_runner = SubprocessRunner()
+        dependency_installer = DependencyInstaller(
+            runner=self.subprocess_runner,
+        )
         self.modules = ImportlibModuleRegistry()
         self.metadata = PackageMetadata()
         self.progress = RichProgress()
@@ -71,8 +75,7 @@ class Container:
         self.init_project_use_case = InitProjectUseCase(
             ui=self.ui,
             fs=self.fs,
-            modules=self.modules,
-            installer=self.installer,
+            dependencies=dependency_installer,
             templates=self.template_provider,
             settings_repo=self.settings,
         )

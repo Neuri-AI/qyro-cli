@@ -5,10 +5,9 @@ import subprocess
 import sys
 from importlib.util import find_spec
 from os.path import isfile, join
-from typing import List
+from typing import List, Sequence, Optional
 from unittest import TestSuite, TextTestRunner, defaultTestLoader
 
-from qyro.domain.errors import PackageInstallationError
 
 
 class ImportlibModuleRegistry:
@@ -21,21 +20,23 @@ class ImportlibModuleRegistry:
             return False
 
 
-class PipPackageInstaller:
-    """PackageInstallerPort."""
+class SubprocessRunner:
+    """Runs subprocess commands for initial setup like installing dependencies."""
+    def run(
+        self,
+        command: Sequence[str],
+        env: Optional[dict[str, str]] = None,
+        cwd: Optional[str] = None,
+    ) -> int:
+        completed = subprocess.run(
+            command,
+            env=env,
+            cwd=cwd,
+        )
 
-    def install(self, package: str) -> None:
-        try:
-            subprocess.run(
-                [sys.executable, "-m", "pip", "install", package],
-                check=True,
-            )
-        except subprocess.CalledProcessError:
-            raise PackageInstallationError(package) from None
-
-
+        return completed.returncode
 class SubprocessAppRunner:
-    """AppRunnerPort — runs the user's app with src/main/python on the path."""
+    """AppRunnerPort — runs the user's app with <project_path>/main.py on the path."""
 
     def run_from_source(
         self,

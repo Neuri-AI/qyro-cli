@@ -8,11 +8,10 @@ from pathlib import Path
 
 from qyro.application.ports import (
     FileSystemPort,
-    ModuleRegistryPort,
-    PackageInstallerPort,
     SettingsPort,
     TemplateProviderPort,
     UserInteractionPort,
+    DependencyInstallerPort,
 )
 from qyro.domain.errors import ProjectAlreadyExistsError
 from qyro.domain.project import (
@@ -29,15 +28,13 @@ class InitProjectUseCase:
         self,
         ui: UserInteractionPort,
         fs: FileSystemPort,
-        modules: ModuleRegistryPort,
-        installer: PackageInstallerPort,
+        dependencies: DependencyInstallerPort,
         templates: TemplateProviderPort,
         settings_repo: SettingsPort,
     ):
         self.ui = ui
         self.fs = fs
-        self.modules = modules
-        self.installer = installer
+        self.dependencies = dependencies
         self.templates = templates
         self.settings = settings_repo
 
@@ -188,19 +185,6 @@ class InitProjectUseCase:
             self.ui.info("Operation aborted by user.")
             return
 
-        if not self.modules.is_installed(config.binding.value):
-            self.ui.info(
-                f"Installing [cyan]{config.binding.value}[/cyan]..."
-            )
-            self.installer.install(config.binding.value)
-
-        for addon in config.addons:
-            if not self.modules.is_installed(addon.value):
-                self.ui.info(
-                    f"Installing add-on [cyan]{addon.value}[/cyan]..."
-                )
-                self.installer.install(addon.value)
-
         self.ui.info("Resolving boilerplate template...")
         template_dir = self.templates.resolve_template(
             binding=config.binding,
@@ -225,10 +209,20 @@ class InitProjectUseCase:
             },
         )
 
+        self.ui.info("Installing project dependencies...")
+        self.dependencies.install(str(destination))
+
         self.ui.success(
-            f"\n🎉 Project initialized successfully in "
-            f"[bold cyan]{target_dir}[/bold cyan]!"
+            f"\n✓ Project initialized successfully in "
+            f"[bold cyan]{target_dir}/[/bold cyan]"
         )
+        self.ui.info("\nNext steps:")
+
+        if target_dir != ".":
+            self.ui.info(
+                f"  [bold green]cd {target_dir}[/bold green]"
+            )
+
         self.ui.info(
-            "Run:\n    [bold green]qyro start[/bold green]\n"
+            "  [bold green]qyro start[/bold green]"
         )

@@ -198,7 +198,9 @@ class DependencyInstallerPort(Protocol):
 
     def install(self, project_dir: str) -> None: ...
 
-
+class ImportlibModuleRegistry:
+    """Checks whether Python modules are installed."""
+    def is_installed(self, module_name: str) -> bool: ...
 
 # --- Processes & application execution -------------------------------------
 

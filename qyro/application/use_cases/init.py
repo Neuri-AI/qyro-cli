@@ -50,10 +50,6 @@ class InitProjectUseCase:
         if self.fs.exists(str(src_path)):
             raise ProjectAlreadyExistsError(str(destination))
 
-        # Get host name of the user
-        import getpass
-        host_name = getpass.getuser()
-
         self.ui.welcome()
 
         platform_options = {
@@ -107,7 +103,7 @@ class InitProjectUseCase:
 
         author = self.ui.ask_text(
             "Author",
-            default=self.fs.default_author(),
+            default=self.fs.current_user(),
         )
 
         addon_options = {

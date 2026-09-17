@@ -14,9 +14,21 @@ class QyroError(Exception):
         self.message = message
         self.hint = hint
 
+    def __str__(self) -> str:
+        if self.hint:
+            return f"{self.message}\n\nHint: {self.hint}"
+
+        return self.message
 
 # --- Project lifecycle ------------------------------------------------------
 
+class ApplicationExecutionError(QyroError):
+    def __init__(self, exit_code: int):
+        super().__init__(
+            f"Application failed with exit code {exit_code}.",
+            hint="Check the application output for details.",
+        )
+        self.exit_code = exit_code
 
 class ProjectAlreadyExistsError(QyroError):
     def __init__(self, path: str):
@@ -32,8 +44,7 @@ class NotAProjectError(QyroError):
         super().__init__(
             f"Current directory '{current_dir}' is not a valid Qyro project.",
             hint=(
-                "Run 'qyro init' first or navigate to a project containing "
-                "'src/build/base.json'."
+                "Run 'qyro init' first or navigate to a project containing a valid qyro project"
             ),
         )
         self.current_dir = current_dir
@@ -185,9 +196,17 @@ class MissingSettingError(QyroError):
     def __init__(self, key: str):
         super().__init__(
             f"Required configuration key '{key}' is missing in project settings.",
-            hint="Check 'src/build/base.json' or target environment configs.",
+            hint="Check 'settings/base.json' or target environment configs.",
         )
         self.key = key
+
+class EntryPointNotFoundError(QyroError):
+    def __init__(self, path: str):
+        super().__init__(
+            f"Entry point '{path}' was not found.",
+            hint="Check the 'entry_point' path in 'settings/base.json'.",
+        )
+        self.path = path
 
 
 class GpgKeyNotConfiguredError(QyroError):

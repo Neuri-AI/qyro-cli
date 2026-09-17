@@ -6,18 +6,14 @@ use cases depend on an interface they can fake instead of on module state.
 """
 
 import shutil
-import getpass
 import json
-from getpass import getuser
-from os import listdir, mkdir, remove, unlink
-from os.path import dirname, exists, isdir, isfile, islink, join
+import getpass
 from pathlib import Path
-from shutil import rmtree
 from string import Template
-from typing import Dict, List
+from typing import Dict, Sequence
 
 from qyro.domain.errors import MissingSettingError
-from qyro.domain.project import ComponentSpec, ProjectConfig
+from qyro.domain.project import ComponentSpec
 
 BASE_SETTINGS = "settings/base.json"
 TEXT_EXTENSIONS = {
@@ -41,28 +37,51 @@ class OsFileSystem:
     def is_dir(self, path: str) -> bool:
         return Path(path).is_dir()
 
-    def make_dir(self, path: str) -> None:
-        Path(path).mkdir(parents=True, exist_ok=True)
+    def resolve(self, relative_path: str) -> str:
+        return str(Path(relative_path).resolve())
 
-    def write_text(self, path: str, content: str) -> None:
-        target = Path(path)
+    def make_directory(self, relative_path: str) -> None:
+        Path(relative_path).mkdir(parents=True, exist_ok=True)
+
+    def remove_tree(self, relative_path: str) -> None:
+        shutil.rmtree(relative_path, ignore_errors=True)
+
+    def empty_directory(self, relative_path: str) -> None:
+        directory = Path(relative_path)
+
+        if not directory.exists():
+            return
+
+        for path in directory.iterdir():
+            if path.is_dir():
+                shutil.rmtree(path, ignore_errors=True)
+            else:
+                path.unlink(missing_ok=True)
+
+    def write_text(
+        self,
+        relative_path: str,
+        content: str,
+    ) -> None:
+        target = Path(relative_path)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
 
-    def read_file(self, path: str) -> str:
-        return Path(path).read_text(encoding="utf-8")
+    def read_text(self, relative_path: str) -> str:
+        return Path(relative_path).read_text(encoding="utf-8")
 
-    def copy_tree(self, source: str, destination: Path) -> None:
+    def copy_tree(
+        self,
+        source: Path,
+        destination: Path,
+    ) -> None:
         shutil.copytree(
             source,
             destination,
             dirs_exist_ok=True,
         )
 
-    def remove_dir(self, path: str) -> None:
-        shutil.rmtree(path, ignore_errors=True)
-
-    def default_author(self) -> str:
+    def current_user(self) -> str:
         try:
             return getpass.getuser()
         except Exception:
@@ -72,10 +91,10 @@ class OsFileSystem:
         self,
         root: str,
         variables: dict[str, object],
-        exclude: set[str] | None = None,
+        exclude: Sequence[str] | None = None,
     ) -> None:
         root_path = Path(root)
-        excluded = exclude or set()
+        excluded = set(exclude or ())
 
         for path in root_path.rglob("*"):
             if not path.is_file():
@@ -85,7 +104,7 @@ class OsFileSystem:
                 continue
 
             if path.suffix.lower() not in TEXT_EXTENSIONS:
-                    continue
+                continue
 
             content = path.read_text(encoding="utf-8")
             rendered = Template(content).substitute(variables)
@@ -95,7 +114,6 @@ class OsFileSystem:
                 encoding="utf-8",
             )
 
-
 class SettingsRepository:
     """
     SettingsPort over ppg's SETTINGS dict.
@@ -104,33 +122,60 @@ class SettingsRepository:
     never have to catch KeyError and guess what it meant.
     """
 
+
+class SettingsRepository:
+    def __init__(self, project_root: Path = None):
+        self._root = project_root or Path.cwd()
+        self._settings = self._load_base()
+
     @property
     def base_settings_path(self) -> str:
-        return BASE_SETTINGS
+        return str(self._root / BASE_SETTINGS)
+
+    def _load_base(self) -> dict:
+        path = self._root / BASE_SETTINGS
+
+        if not path.exists():
+            return {}
+
+        return json.loads(path.read_text(encoding="utf-8"))
 
     def get(self, key: str):
-        from qyro import SETTINGS
         try:
-            return SETTINGS[key]
+            return self._settings[key]
         except KeyError:
             raise MissingSettingError(key) from None
 
     def get_optional(self, key: str, default=None):
-        from qyro import SETTINGS
-        return SETTINGS.get(key, default)
+        return self._settings.get(key, default)
 
     def set(self, key: str, value) -> None:
-        from qyro import SETTINGS
-        SETTINGS[key] = value
+        self._settings[key] = value
 
     def activate_profile(self, profile: str) -> None:
-        from qyro import activate_profile
-        activate_profile(profile)
+        profile_path = self._root / "settings" / f"{profile}.json"
+
+        if not profile_path.exists():
+            return
+
+        profile_settings = json.loads(
+            profile_path.read_text(encoding="utf-8")
+        )
+
+        self._settings.update(profile_settings)
 
     def persist_base(self, values: Dict[str, object]) -> None:
-        from qyro import path
-        from qyro.builtin_commands._util import update_json
-        update_json(path(BASE_SETTINGS), values)
+        path = self._root / BASE_SETTINGS
+        settings = self._load_base()
+        settings.update(values)
+
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            json.dumps(settings, indent=4),
+            encoding="utf-8",
+        )
+
+
 
 
 class ComponentFileWriter:

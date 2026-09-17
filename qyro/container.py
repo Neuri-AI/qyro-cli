@@ -23,10 +23,11 @@ from qyro.adapters.templates.fallback import FallbackTemplateProvider
 from qyro.adapters.templates.github_cached import (
     GitHubCachedTemplateProvider,
 )
+from qyro.adapters.cli.progress import RichProgress
 from qyro.application.use_cases.init import InitProjectUseCase
 from qyro.application.use_cases.version import ShowVersionUseCase
-from qyro.adapters.cli.progress import RichProgress
-
+from qyro.application.use_cases.start import RunApplicationUseCase
+from qyro.application.guards import ProjectGuards
 
 # BUILDERS
 # from qyro.adapters.platform.factory import PlatformStrategyFactory
@@ -53,6 +54,10 @@ class Container:
             runner=self.subprocess_runner,
         )
         self.modules = ImportlibModuleRegistry()
+        self.guards = ProjectGuards(
+            files=self.fs,
+            settings=self.settings,
+        )
         self.metadata = PackageMetadata()
         self.progress = RichProgress()
 
@@ -83,6 +88,15 @@ class Container:
         self.show_version_use_case = ShowVersionUseCase(
             ui=self.ui,
             metadata=self.metadata,
+        )
+
+        self.run_application_use_case = RunApplicationUseCase(
+            ui=self.ui,
+            fs=self.fs,
+            settings=self.settings,
+            app_runner=self.app_runner,
+            modules=self.modules,
+            guards=self.guards,
         )
 
 

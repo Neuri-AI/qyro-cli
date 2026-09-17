@@ -6,6 +6,7 @@ Implementation of the `qyro start` command.
 import argparse
 
 from qyro.cmdline.registry import command
+from qyro.container import get_container
 
 
 @command(
@@ -28,6 +29,6 @@ class StartCommand:
         the corresponding use case is available.
         """
 
-        print("Start command selected.")
+        get_container().run_application_use_case.execute()
 
         return 0

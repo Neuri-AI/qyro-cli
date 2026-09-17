@@ -49,6 +49,10 @@ class RunApplicationUseCase:
         entry_point = self.settings.get("entry_point")
         entry_point_path = Path(current_dir) / str(entry_point)
 
+        binding = self.settings.get("binding")
+        if binding not in (b.value for b in Binding):
+            raise MissingBindingError(tuple(binding.value for binding in Binding))
+
         if not self.fs.exists(str(entry_point_path)):
             raise EntryPointNotFoundError(str(entry_point_path))
 

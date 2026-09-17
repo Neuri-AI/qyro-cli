@@ -18,7 +18,7 @@ class ProjectGuards:
         self._settings = settings
 
     def require_existing_project(self) -> None:
-        if not self._files.exists("settings/base.json"):
+        if not self._files.exists("pyproject.toml"):
             raise NotAProjectError(self._files.resolve("."))
 
     def require_frozen_app(self) -> None:

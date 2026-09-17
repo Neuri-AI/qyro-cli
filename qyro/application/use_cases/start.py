@@ -46,6 +46,8 @@ class RunApplicationUseCase:
 
         current_dir = self.fs.resolve(".")
 
+        print(self.settings._load_base())
+        
         entry_point = self.settings.get("entry_point")
         entry_point_path = Path(current_dir) / str(entry_point)
 

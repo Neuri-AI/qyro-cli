@@ -10,7 +10,7 @@ import json
 import getpass
 from pathlib import Path
 from string import Template
-from typing import Dict, Sequence
+from typing import Sequence
 
 from qyro.domain.errors import MissingSettingError
 from qyro.domain.project import ComponentSpec
@@ -114,16 +114,14 @@ class OsFileSystem:
                 encoding="utf-8",
             )
 
+
 class SettingsRepository:
     """
-    SettingsPort over ppg's SETTINGS dict.
+    SettingsPort over qyro's SETTINGS dict.
 
     `get` raises a typed domain error instead of a bare KeyError, so use cases
     never have to catch KeyError and guess what it meant.
     """
-
-
-class SettingsRepository:
     def __init__(self, project_root: Path = None):
         self._root = project_root or Path.cwd()
         self._settings = self._load_base()
@@ -146,37 +144,6 @@ class SettingsRepository:
         except KeyError:
             raise MissingSettingError(key) from None
 
-    def get_optional(self, key: str, default=None):
-        return self._settings.get(key, default)
-
-    def set(self, key: str, value) -> None:
-        self._settings[key] = value
-
-    def activate_profile(self, profile: str) -> None:
-        profile_path = self._root / "settings" / f"{profile}.json"
-
-        if not profile_path.exists():
-            return
-
-        profile_settings = json.loads(
-            profile_path.read_text(encoding="utf-8")
-        )
-
-        self._settings.update(profile_settings)
-
-    def persist_base(self, values: Dict[str, object]) -> None:
-        path = self._root / BASE_SETTINGS
-        settings = self._load_base()
-        settings.update(values)
-
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(
-            json.dumps(settings, indent=4),
-            encoding="utf-8",
-        )
-
-
-
 
 class ComponentFileWriter:
     """ComponentWriterPort: renders and writes a component/view file."""
@@ -195,10 +162,10 @@ class ComponentFileWriter:
         return Path(self.target_path(spec)).exists()
 
     def render(self, spec: ComponentSpec) -> str:
-        from qyro.builtin_commands.components import component_template
+        """from qyro.builtin_commands.components import component_template
         return Template(component_template).substitute(
             **spec.template_variables()
-        )
+        )"""
 
     def write(self, spec: ComponentSpec, code: str) -> str:
         directory = self._directory(spec)

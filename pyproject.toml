@@ -73,6 +73,9 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
 ]
 
+[tool.poetry.dependencies]
+qyro-engine = { git = "https://github.com/Neuri-AI/Qyro-engine.git" }
+
 [project.optional-dependencies]
 mobile = [
     "buildozer>=1.5.0",

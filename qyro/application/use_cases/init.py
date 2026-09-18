@@ -3,7 +3,6 @@ qyro.application.use_cases.init_project
 Orchestrates project initialization following Clean Architecture.
 """
 
-import json
 from pathlib import Path
 
 from qyro.application.ports import (

@@ -126,7 +126,7 @@ class ProjectConfig:
             "Target platform": self.target_platform.value,
         }
 
-    def as_template_variables(self) -> Dict[str, Optional[str]]:
+    def as_template_variables(self) -> Dict[str, object]:
         """Variables substituted into the project template files."""
         return {
             "app_name": self.app_name,

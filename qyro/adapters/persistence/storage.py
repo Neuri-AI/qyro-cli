@@ -87,6 +87,12 @@ class OsFileSystem:
         except Exception:
             return "Unknown"
 
+    def _render_variable(self, value: object) -> str:
+        if isinstance(value, (dict, list, tuple)):
+            return json.dumps(value)
+
+        return str(value)
+
     def render_tree(
         self,
         root: str,
@@ -95,6 +101,11 @@ class OsFileSystem:
     ) -> None:
         root_path = Path(root)
         excluded = set(exclude or ())
+
+        rendered_variables = {
+            key: self._render_variable(value)
+            for key, value in variables.items()
+        }
 
         for path in root_path.rglob("*"):
             if not path.is_file():
@@ -107,7 +118,7 @@ class OsFileSystem:
                 continue
 
             content = path.read_text(encoding="utf-8")
-            rendered = Template(content).substitute(variables)
+            rendered = Template(content).substitute(rendered_variables)
 
             path.write_text(
                 rendered,
@@ -122,6 +133,7 @@ class SettingsRepository:
     `get` raises a typed domain error instead of a bare KeyError, so use cases
     never have to catch KeyError and guess what it meant.
     """
+
     def __init__(self, project_root: Path = None):
         self._root = project_root or Path.cwd()
         self._settings = self._load_base()

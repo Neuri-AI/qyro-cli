@@ -1,55 +1,20 @@
 [project]
-
 name = "qyro"
 version = "1.0.0"
 description = "A CLI for Qyro Engine app generator"
 authors = [{ name = "Neuri", email = "ppg@neuri.ai" }]
 maintainers = [
     { name = "Luis Alfredo De Los Reyes", email = "alfredo@neuri.ai" },
-
 ]
 dynamic = [ "classifiers" ]
 keywords = [
-    "ppg",
-    "python",
-    "pyqt",
-    "pyside",
-    "desktop",
-    "application",
-    "generator",
-    "cli",
-    "component",
-    "state management",
-    "pydux",
-    "fbs",
-    "react",
-    "redux",
-    "app development",
-    "modular",
-    "scalable",
-    "lifecycle",
-    "component-based",
-    "pyside6",
-    "pyqt6",
-    "pyqt5",
-    "pyqt6 generator",
-    "pyqt5 generator",
-    "pyside6 generator",
-    "pyside5 generator",
-    "pyqt6 app",
-    "pyqt5 app",
-    "pyside6 app",
-    "pyside5 app",
-    "app generator",
-    "Android",
-    "iOS",
-    "macOS",
-    "Windows",
-    "Linux",
+    "ppg", "python", "pyqt", "pyside", "desktop", "application", 
+    "generator", "cli", "component", "state management", "pyside6"
 ]
-
 license = "MIT"
 requires-python = ">=3.11,<3.16"
+readme = "README.md"
+
 dependencies = [
     "requests (>=2.34.2,<3.0.0)",
     "semver (>=3.1.0,<4.0.0)",
@@ -57,44 +22,39 @@ dependencies = [
     "prompt-toolkit (>=3.0.53,<4.0.0)",
     "questionary (>=2.1.1,<3.0.0)",
     "pyinstaller (>=6.22.3,<7.0.0)",
-    "qyro-engine @ git+https://github.com/Neuri-AI/qyro-engine.git",
+    "qyro-engine @ git+https://github.com",
 ]
-readme = "README.md"
-
-[tool.poetry]
-package-mode = false
-classifiers = [
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-    "Topic :: Software Development :: Libraries",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: 3.14",
-]
-
-[tool.poetry.dependencies]
-qyro-engine = { git = "https://github.com/Neuri-AI/Qyro-engine.git", branch = "main" }
 
 [project.optional-dependencies]
 mobile = [
     "buildozer>=1.5.0",
 ]
 
+[project.scripts]
+qyro = "qyro.cmdline.app:main"
+
+[tool.poetry]
+package-mode = true
+
+packages = [{ include = "qyro" }]
+
+classifiers = [
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Libraries",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
 [tool.poetry.group.dev.dependencies]
 pytest = ">=9.0.0"
 pytest-cov = ">=4.1.0"
-
-
-[[tool.poetry.packages]]
-include = "qyro"
-
-# CRITICAL ENTRYPOINT DEFINITION:
-# This registers the executable 'qyro' in the Python virtualenv bin/
-[project.scripts]
-qyro = "qyro.cmdline.app:main"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

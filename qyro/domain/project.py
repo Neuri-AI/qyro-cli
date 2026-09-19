@@ -6,7 +6,7 @@ All the small rules that used to be inlined in `init()` and `create()` live
 here now — default bundle id, default base widget per binding, CamelCase
 conversion — which means they're unit-testable without a terminal.
 """
-
+import sys
 from dataclasses import dataclass
 from typing import Dict, Optional
 from dataclasses import dataclass, field
@@ -93,6 +93,13 @@ class Binding(str, Enum):
 
         return False
 
+    @property
+    def dependency_spec(self) -> str:
+        if self == Binding.PYQT5 and sys.platform.startswith("win"):
+            # Mantiene PyQt5 y restringe PyQt5-Qt5 en Windows sin compilar
+            return 'PyQt5", "PyQt5-Qt5<=5.15.2; sys_platform == \'win32\''
+        return self.value
+
 
 @dataclass
 class ProjectConfig:
@@ -133,6 +140,7 @@ class ProjectConfig:
             "author": self.author,
             "mac_bundle_identifier": self.mac_bundle_identifier,
             "python_bindings": self.binding.value,
+            "framework": self.binding.dependency_spec,
             "addons": [addon.value for addon in self.addons], # for qyro_runtime info
 
             # for pyproject.toml

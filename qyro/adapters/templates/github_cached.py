@@ -164,21 +164,13 @@ class GitHubCachedTemplateProvider:
         target_platform: TargetPlatform,
         version: Version,
     ) -> str:
-        if target_platform in {
-            TargetPlatform.IPHONE,
-            TargetPlatform.ANDROID,
-        }:
+        family = self._template_family(binding)
+        
+        if target_platform in {TargetPlatform.IPHONE, TargetPlatform.ANDROID}:
             platform_name = target_platform.value.lower()
-
-            return (
-                f"template-{binding.value.lower()}-"
-                f"{platform_name}-{version}"
-            )
-
-        return (
-            f"template-{binding.value.lower()}-"
-            f"desktop-{version}"
-        )
+            return f"template-{family}-{platform_name}-{version}"
+    
+        return f"template-{family}-desktop-{version}"
 
     def _fetch_tags(
         self,
@@ -332,19 +324,11 @@ class GitHubCachedTemplateProvider:
         target_platform: TargetPlatform,
         requested_version: Version | None = None,
     ) -> Path:
-        if target_platform in {
-            TargetPlatform.IPHONE,
-            TargetPlatform.ANDROID,
-        }:
-            prefix = (
-                f"template-{binding.value.lower()}-"
-                f"{target_platform.value.lower()}-"
-            )
+        family = self._template_family(binding)
+        if target_platform in {TargetPlatform.IPHONE, TargetPlatform.ANDROID}:
+            prefix = f"template-{family}-{target_platform.value.lower()}-"
         else:
-            prefix = (
-                f"template-{binding.value.lower()}-"
-                "desktop-"
-            )
+            prefix = f"template-{family}-desktop-"
 
         if requested_version is not None:
             cached_path = (
@@ -393,3 +377,9 @@ class GitHubCachedTemplateProvider:
             "Failed to reach GitHub and no compatible "
             "local template is available."
         )
+    
+    def _template_family(self, binding: Binding) -> str:
+        """Agrupa los bindings que comparten el mismo repositorio de boilerplate."""
+        if binding in {Binding.PYSIDE2, Binding.PYSIDE6, Binding.PYQT5, Binding.PYQT6}:
+            return "qt"
+        return binding.value.lower()

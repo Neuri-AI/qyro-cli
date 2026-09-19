@@ -54,14 +54,14 @@ class InitProjectUseCase:
         platform_options = {
             "iPhone": TargetPlatform.IPHONE,
             "Android": TargetPlatform.ANDROID,
-            "Desktop (x86)": TargetPlatform.X86,
+            "Desktop (x86_64)": TargetPlatform.X86_64,
             "Desktop (Apple Silicon)": TargetPlatform.APPLE_SILICON,
         }
 
         platform_str = self.ui.ask_choice(
             "Select target platform",
             list(platform_options),
-            default="Desktop (x86)",
+            default="Desktop (x86_64)",
         )
 
         target_platform = platform_options[platform_str]

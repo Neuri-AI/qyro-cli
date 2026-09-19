@@ -33,7 +33,7 @@ class AddonModule(str, Enum):
 class TargetPlatform(str, Enum):
     IPHONE = "iPhone"
     ANDROID = "Android"
-    X86 = "x86"
+    X86_64 = "x86_64"
     APPLE_SILICON = "Apple Silicon"
 
 
@@ -80,7 +80,7 @@ class Binding(str, Enum):
                 Binding.PYSIDE6,
             )
 
-        if platform == TargetPlatform.X86:
+        if platform == TargetPlatform.X86_64:
             return True
 
         if platform == TargetPlatform.APPLE_SILICON:
@@ -104,7 +104,7 @@ class ProjectConfig:
     binding: Binding
     mac_bundle_identifier: Optional[str] = None
     addons: list[AddonModule] = field(default_factory=list)
-    target_platform: TargetPlatform = TargetPlatform.X86
+    target_platform: TargetPlatform = TargetPlatform.X86_64
 
     DEFAULT_HIDDEN_IMPORTS = ("__future__",)
 

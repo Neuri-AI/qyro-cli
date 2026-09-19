@@ -1,4 +1,3 @@
-
 """
 qyro.adapters.templates.github_cached
 
@@ -14,13 +13,13 @@ from pathlib import Path
 
 import requests
 
+from qyro.application.ports import ProgressPort
 from qyro.domain.errors import (
     InvalidVersionError,
     TemplateUnavailableError,
 )
 from qyro.domain.project import Binding, TargetPlatform
 from qyro.domain.version import Version
-from qyro.application.ports import ProgressPort
 
 
 class GitHubCachedTemplateProvider:
@@ -124,16 +123,39 @@ class GitHubCachedTemplateProvider:
         binding: Binding,
         target_platform: TargetPlatform,
     ) -> str:
-        platform_name = {
-            TargetPlatform.IPHONE: "ios",
-            TargetPlatform.ANDROID: "android",
-            TargetPlatform.X86: "x86_64",
-            TargetPlatform.APPLE_SILICON: "x86_64",
-        }[target_platform].lower()
+        if target_platform in {
+            TargetPlatform.IPHONE,
+            TargetPlatform.ANDROID,
+        }:
+            if binding not in {
+                Binding.KIVY,
+                Binding.PYSIDE6,
+            }:
+                raise TemplateUnavailableError(
+                    f"{binding.value} is not supported on "
+                    f"{target_platform.value}."
+                )
+
+            return (
+                f"{self.organization}/qyro-boilerplate-"
+                f"{binding.value.lower()}-"
+                f"{target_platform.value.lower()}"
+            )
+
+        if binding in {
+            Binding.PYSIDE2,
+            Binding.PYSIDE6,
+            Binding.PYQT5,
+            Binding.PYQT6,
+        }:
+            return (
+                f"{self.organization}/"
+                "qyro-boilerplate-qt"
+            )
 
         return (
-            f"{self.organization}/qyro-boilerplate-"
-            f"{binding.value.lower()}-{platform_name}"
+            f"{self.organization}/"
+            f"qyro-boilerplate-{binding.value.lower()}"
         )
 
     def _cache_name(
@@ -142,16 +164,20 @@ class GitHubCachedTemplateProvider:
         target_platform: TargetPlatform,
         version: Version,
     ) -> str:
-        platform_name = {
-            TargetPlatform.IPHONE: "ios",
-            TargetPlatform.ANDROID: "android",
-            TargetPlatform.X86: "x86_64",
-            TargetPlatform.APPLE_SILICON: "x86_64",
-        }[target_platform]
+        if target_platform in {
+            TargetPlatform.IPHONE,
+            TargetPlatform.ANDROID,
+        }:
+            platform_name = target_platform.value.lower()
+
+            return (
+                f"template-{binding.value.lower()}-"
+                f"{platform_name}-{version}"
+            )
 
         return (
             f"template-{binding.value.lower()}-"
-            f"{platform_name}-{version}"
+            f"desktop-{version}"
         )
 
     def _fetch_tags(
@@ -306,16 +332,19 @@ class GitHubCachedTemplateProvider:
         target_platform: TargetPlatform,
         requested_version: Version | None = None,
     ) -> Path:
-        platform_name = {
-            TargetPlatform.IPHONE: "ios",
-            TargetPlatform.ANDROID: "android",
-            TargetPlatform.X86: "x86_64",
-        }[target_platform]
-
-        prefix = (
-            f"template-{binding.value.lower()}-"
-            f"{platform_name}-"
-        )
+        if target_platform in {
+            TargetPlatform.IPHONE,
+            TargetPlatform.ANDROID,
+        }:
+            prefix = (
+                f"template-{binding.value.lower()}-"
+                f"{target_platform.value.lower()}-"
+            )
+        else:
+            prefix = (
+                f"template-{binding.value.lower()}-"
+                "desktop-"
+            )
 
         if requested_version is not None:
             cached_path = (

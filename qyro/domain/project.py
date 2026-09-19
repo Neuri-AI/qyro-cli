@@ -96,8 +96,13 @@ class Binding(str, Enum):
     @property
     def dependency_spec(self) -> str:
         if self == Binding.PYQT5 and sys.platform.startswith("win"):
-            # Mantiene PyQt5 y restringe PyQt5-Qt5 en Windows sin compilar
+            # Keep PyQt5 and restrict PyQt5-Qt5 on Windows without compiling
             return 'PyQt5", "PyQt5-Qt5<=5.15.2; sys_platform == \'win32\''
+
+        if self == Binding.PYSIDE2:
+            # Force 5.15.2 for PySide2 and limit python <3.11
+            return 'PySide2>=5.15.2; python_version < "3.11"'
+
         return self.value
 
 
@@ -142,7 +147,7 @@ class ProjectConfig:
             "python_bindings": self.binding.value,
             "framework": self.binding.dependency_spec,
             "addons": [addon.value for addon in self.addons], # for qyro_runtime info
-
+            "python_version": self.target_python_version,
             # for pyproject.toml
             "addon_dependencies": ",\n".join(
                 f'    "{addon.value}"'
@@ -161,6 +166,17 @@ class ProjectConfig:
             "binding": self.binding.value,
             "hidden_imports": list(self.DEFAULT_HIDDEN_IMPORTS),
         }
+
+    @property
+    def target_python_version(self) -> str:
+        """Returns the target Python version for this binding."""
+        if self.binding == Binding.PYSIDE2:
+            return ">=3.8,<3.11"
+
+        if self.binding == Binding.PYQT5:
+            return ">=3.8,<3.13"
+
+        return ">=3.11,<3.15"
 
 
 class ComponentType(str, Enum):

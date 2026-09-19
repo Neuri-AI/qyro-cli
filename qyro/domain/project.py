@@ -45,6 +45,15 @@ class Binding(str, Enum):
     KIVY = "Kivy"
     TKINTER = "Tkinter"
 
+    @property
+    def import_name(self) -> str:
+        """Return the actual module name expected by importlib."""
+        mapping = {
+            Binding.KIVY: "kivy",
+            Binding.TKINTER: "tkinter",
+        }
+        return mapping.get(self, self.value)
+
     @classmethod
     def values(cls) -> tuple:
         return tuple(b.value for b in cls)

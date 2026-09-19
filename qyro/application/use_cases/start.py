@@ -11,6 +11,7 @@ from qyro.application.ports import (
 from qyro.domain.errors import (
     ApplicationExecutionError,
     EntryPointNotFoundError,
+    InvalidBindingError,
     MissingBindingError,
 )
 from qyro.domain.project import Binding
@@ -36,22 +37,19 @@ class RunApplicationUseCase:
     def execute(self) -> None:
         self.guards.require_existing_project()
 
-        if not any(
-            self.modules.is_installed(binding.value)
-            for binding in Binding
-        ):
-            raise MissingBindingError(
-                tuple(binding.value for binding in Binding)
-            )
+        raw_binding = self.settings.get("binding")
+        try:
+            binding = Binding.parse(raw_binding)
+        except InvalidBindingError:
+            raise MissingBindingError(Binding.values())
+
+        if not self.modules.is_installed(binding.import_name):
+            raise MissingBindingError((binding.value))
 
         current_dir = self.fs.resolve(".")
 
         entry_point = self.settings.get("entry_point")
         entry_point_path = Path(current_dir) / str(entry_point)
-
-        binding = self.settings.get("binding")
-        if binding not in (b.value for b in Binding):
-            raise MissingBindingError(tuple(binding.value for binding in Binding))
 
         if not self.fs.exists(str(entry_point_path)):
             raise EntryPointNotFoundError(str(entry_point_path))

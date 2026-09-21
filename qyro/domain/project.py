@@ -12,7 +12,7 @@ from typing import Dict, Optional
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, Optional
-
+import re
 from qyro.domain.errors import InvalidComponentTypeError, InvalidBindingError
 from qyro.domain.version import Version
 
@@ -151,11 +151,13 @@ class ProjectConfig:
         """Variables substituted into the project template files."""
         return {
             "app_name": self.app_name,
+            "class_name": self.to_pascal_case,
             "author": self.author,
             "mac_bundle_identifier": self.mac_bundle_identifier,
             "python_bindings": self.binding.value,
             "framework": self.binding.dependency_spec,
-            "addons": [addon.value for addon in self.addons], # for qyro_runtime info
+            # for qyro_runtime info
+            "addons": [addon.value for addon in self.addons],
             "python_version": self.target_python_version,
             # for pyproject.toml
             "addon_dependencies": ",\n".join(
@@ -186,6 +188,31 @@ class ProjectConfig:
             return ">=3.8,<3.13"
 
         return ">=3.11,<3.15"
+
+    @property
+    def to_pascal_case(self) -> str:
+        """
+        Transforms the instance's name into a valid, idiomatic Python PascalCase class identifier.
+        Handles hyphens, underscores, spaces, dots, and camelCase transitions.
+        Examples:
+            'my-awesome-app' -> 'MyAwesomeApp'
+            'my_awesome_app' -> 'MyAwesomeApp'
+            'my awesome app' -> 'MyAwesomeApp'
+            'myAwesomeApp'   -> 'MyAwesomeApp'
+        """
+        s = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", self.app_name)
+        s = re.sub(r"[^a-zA-Z0-9]+", " ", s).strip()
+
+        if not s:
+            return "App"
+
+        words = s.split()
+        pascal = "".join(w[:1].upper() + w[1:] for w in words)
+
+        if pascal[0].isdigit():
+            pascal = f"App{pascal}"
+
+        return pascal or "App"
 
 
 class ComponentType(str, Enum):

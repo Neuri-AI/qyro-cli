@@ -138,6 +138,15 @@ class PyInstallerFreezer(FreezerPort):
             cmd.append("--noupx")
         else:
             for upx_exc in manifest.optimization.upx_excludes:
+                exc_lower = upx_exc.lower()
+                target_p = manifest.target_platform.lower()
+                # Smart OS filter: discard incompatible binary extensions
+                if target_p == "linux":
+                    if exc_lower.endswith(".dll") or exc_lower.endswith(".pyd"):
+                        continue
+                elif target_p == "windows":
+                    if exc_lower.endswith(".so") or ".so." in exc_lower or exc_lower.endswith(".dylib"):
+                        continue
                 cmd.extend(["--upx-exclude", upx_exc])
 
         # Module exclusions for lightweight binaries
@@ -353,34 +362,120 @@ class PyInstallerFreezer(FreezerPort):
                         shutil.copy2(item, dest)
 
     def _purge_excluded_binaries(self, output_dir: Path, manifest: FreezeManifest) -> None:
-        """Purges C++ frameworks, dylibs, and binary plugins for modules listed in exclude_modules."""
-        if not manifest.optimization.exclude_modules or not output_dir.exists():
+        """Purges C++ frameworks, shared objects (.so), DLLs, dylibs, and binary plugins for modules listed in exclude_modules."""
+        if not output_dir.exists():
             return
 
-        for exc in manifest.optimization.exclude_modules:
+        exclude_modules = set(manifest.optimization.exclude_modules or [])
+
+        # Extract lowercase keywords for matching (e.g. 'virtualkeyboard', 'webengine', 'pdf', 'qml', 'quick')
+        keywords: set[str] = set()
+        exact_targets: set[str] = set()
+
+        for exc in exclude_modules:
             parts = exc.split(".")
-            short_name = parts[-1]
+            short_name = parts[-1]  # e.g., QtWebEngineCore, Qt3DCore, QtQuick, QtQml, QtVirtualKeyboard
+            qt_suffix = short_name[2:] if short_name.startswith("Qt") and len(short_name) > 2 else short_name
 
-            targets = [
-                f"{short_name}.framework",
-                f"{short_name}.abi3.so",
-                f"{short_name}.so",
-                f"{short_name}.pyd",
-                f"{short_name}.dylib",
-                f"libQt6{short_name[2:] if short_name.startswith('Qt') else short_name}.dylib",
-                f"libQt5{short_name[2:] if short_name.startswith('Qt') else short_name}.dylib",
-            ]
+            kw = qt_suffix.lower()
+            if kw:
+                keywords.add(kw)
+            if short_name.lower():
+                keywords.add(short_name.lower())
 
-            for path in list(output_dir.rglob("*")):
-                if not path.exists():
-                    continue
-                name = path.name
-                if name in targets or (path.is_dir() and name.endswith(".framework") and short_name in name):
+            # Specific exact targets
+            exact_targets.update([
+                f"{short_name}.framework".lower(),
+                f"{short_name}.abi3.so".lower(),
+                f"{short_name}.so".lower(),
+                f"{short_name}.pyd".lower(),
+                f"{short_name}.dylib".lower(),
+                f"{short_name}.dll".lower(),
+            ])
+
+        # Walk bottom-up to safely delete files and subdirectories
+        for root, dirs, files in os.walk(str(output_dir), topdown=False):
+            # Check files and symlinks
+            for f in files:
+                file_p = Path(root) / f
+                f_lower = f.lower()
+
+                should_delete = False
+                if f_lower in exact_targets:
+                    should_delete = True
+                else:
+                    for kw in keywords:
+                        if kw in f_lower:
+                            should_delete = True
+                            break
+
+                if should_delete:
                     try:
-                        if path.is_dir() and not path.is_symlink():
-                            shutil.rmtree(path, ignore_errors=True)
-                        else:
-                            os.unlink(path)
+                        if file_p.is_symlink() or file_p.is_file():
+                            os.unlink(file_p)
+                        elif file_p.is_dir():
+                            shutil.rmtree(file_p, ignore_errors=True)
+                    except OSError:
+                        pass
+
+            # Check directory names
+            for d in dirs:
+                dir_p = Path(root) / d
+                d_lower = d.lower()
+
+                should_delete = False
+                for kw in keywords:
+                    if kw in d_lower:
+                        should_delete = True
+                        break
+
+                if should_delete:
+                    try:
+                        if dir_p.is_symlink():
+                            os.unlink(dir_p)
+                        elif dir_p.is_dir():
+                            shutil.rmtree(dir_p, ignore_errors=True)
+                    except OSError:
+                        pass
+
+        # Perform Qt asset optimization cleanups if clean_build is enabled
+        if manifest.optimization.clean_build:
+            for qt_binding in ("PySide6", "PyQt6", "PySide2", "PyQt5"):
+                for qt_path in list(output_dir.rglob(f"{qt_binding}/Qt")) + list(output_dir.rglob(f"{qt_binding}/Qt6")):
+                    if not qt_path.exists() or not qt_path.is_dir():
+                        continue
+
+                    # 1. Purge translations folder (hundreds of .qm files saving 25MB+)
+                    trans_dir = qt_path / "translations"
+                    if trans_dir.exists() and trans_dir.is_dir():
+                        shutil.rmtree(trans_dir, ignore_errors=True)
+
+                    # 2. Purge qml folder if QML is excluded
+                    if any("qml" in k or "quick" in k for k in keywords):
+                        qml_dir = qt_path / "qml"
+                        if qml_dir.exists() and qml_dir.is_dir():
+                            shutil.rmtree(qml_dir, ignore_errors=True)
+
+                    # 3. Purge unused heavyweight plugins (egldeviceintegrations, wayland-*)
+                    plugins_dir = qt_path / "plugins"
+                    if plugins_dir.exists() and plugins_dir.is_dir():
+                        for plug_name in (
+                            "egldeviceintegrations",
+                            "wayland-decoration-client",
+                            "wayland-graphics-integration-client",
+                            "wayland-shell-integration",
+                        ):
+                            plug_p = plugins_dir / plug_name
+                            if plug_p.exists():
+                                shutil.rmtree(plug_p, ignore_errors=True)
+
+        # Cleanup Pass: Purge any broken symlinks remaining anywhere in output_dir
+        for root, dirs, files in os.walk(str(output_dir), topdown=False):
+            for name in files + dirs:
+                p = Path(root) / name
+                if p.is_symlink() and not p.exists():
+                    try:
+                        os.unlink(p)
                     except OSError:
                         pass
 

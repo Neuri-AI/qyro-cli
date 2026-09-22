@@ -23,7 +23,7 @@ from qyro.domain.build import (
     BuildArtifact,
     BundleMode,
     FreezeManifest,
-
+    UACLevel,
 )
 from qyro.domain.errors import QyroError, FreezeExecutionError
 
@@ -134,7 +134,7 @@ class PyInstallerFreezer(FreezerPort):
         if manifest.optimization.clean_build:
             cmd.append("--clean")
 
-        if not manifest.optimization.upx_enabled:
+        if is_mac_target or not manifest.optimization.upx_enabled:
             cmd.append("--noupx")
         else:
             for upx_exc in manifest.optimization.upx_excludes:

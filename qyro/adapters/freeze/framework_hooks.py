@@ -47,6 +47,8 @@ class FrameworkHookResolver(FrameworkHookResolverPort):
         if resolver:
             args.extend(resolver(project_root, manifest))
 
+        args.extend(self._resolve_competing_framework_exclusions(binding, manifest))
+
         args.extend(self._resolve_addons(manifest))
         args.extend(self._resolve_project_assets(project_root, manifest))
 
@@ -215,21 +217,42 @@ class FrameworkHookResolver(FrameworkHookResolverPort):
         manifest: FreezeManifest,
     ) -> List[str]:
         args: List[str] = []
+        sep = self._data_separator(manifest)
 
         resources_dir_name = manifest.resources_dir or "resources"
         resources_path = (project_root / resources_dir_name).resolve()
 
         if resources_path.is_dir():
-            args.extend([
-                "--add-data",
-                f"{resources_path.as_posix()}{self._data_separator(manifest)}{resources_dir_name}",
-            ])
+            # If resources/base exists, include platform profiles
+            base_dir = resources_path / "base"
+            if base_dir.is_dir():
+                # Add base resources
+                args.extend(["--add-data", f"{base_dir.as_posix()}{sep}{resources_dir_name}"])
+
+                # Add platform-specific resources if present
+                plat = manifest.target_platform.lower()
+                plat_dir = None
+                if plat in ("mac", "macos", "darwin"):
+                    plat_dir = resources_path / "mac"
+                elif plat == "windows":
+                    plat_dir = resources_path / "windows"
+                elif plat == "linux":
+                    plat_dir = resources_path / "linux"
+
+                if plat_dir and plat_dir.is_dir():
+                    args.extend(["--add-data", f"{plat_dir.as_posix()}{sep}{resources_dir_name}"])
+            else:
+                # Flat resources directory
+                args.extend([
+                    "--add-data",
+                    f"{resources_path.as_posix()}{sep}{resources_dir_name}",
+                ])
 
         settings_path = (project_root / "settings").resolve()
         if settings_path.is_dir():
             args.extend([
                 "--add-data",
-                f"{settings_path.as_posix()}{self._data_separator(manifest)}settings",
+                f"{settings_path.as_posix()}{sep}settings",
             ])
 
         return args
@@ -239,3 +262,47 @@ class FrameworkHookResolver(FrameworkHookResolverPort):
 
     def _has_qml(self, project_root: Path) -> bool:
         return any(project_root.rglob("*.qml"))
+
+    def _resolve_competing_framework_exclusions(
+        self,
+        binding: Binding,
+        manifest: FreezeManifest,
+    ) -> List[str]:
+        """
+        Automatically excludes competing UI framework packages from PyInstaller scanning
+        so users never need to manually list 'kivy', 'kivy_install', etc. in exclude_modules.
+        """
+        exclusions: List[str] = []
+        user_excludes = {m.lower() for m in manifest.optimization.exclude_modules}
+
+        # If active binding is Qt-based (PySide6, PyQt6, PyQt5, PySide2)
+        if binding.is_pyside or binding in (Binding.PYQT6, Binding.PYQT5):
+            competing = ["kivy", "kivy_install", "tkinter"]
+            if binding != Binding.PYSIDE6:
+                competing.append("PySide6")
+            if binding != Binding.PYQT6:
+                competing.append("PyQt6")
+            if binding != Binding.PYQT5:
+                competing.append("PyQt5")
+            if binding != Binding.PYSIDE2:
+                competing.append("PySide2")
+
+            for mod in competing:
+                if mod.lower() not in user_excludes:
+                    exclusions.extend(["--exclude-module", mod])
+
+        # If active binding is Kivy
+        elif binding == Binding.KIVY:
+            competing = ["PySide6", "PyQt6", "PyQt5", "PySide2", "tkinter"]
+            for mod in competing:
+                if mod.lower() not in user_excludes:
+                    exclusions.extend(["--exclude-module", mod])
+
+        # If active binding is Tkinter
+        elif binding == Binding.TKINTER:
+            competing = ["kivy", "kivy_install", "PySide6", "PyQt6", "PyQt5", "PySide2"]
+            for mod in competing:
+                if mod.lower() not in user_excludes:
+                    exclusions.extend(["--exclude-module", mod])
+
+        return exclusions

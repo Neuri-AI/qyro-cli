@@ -23,22 +23,9 @@ from qyro.domain.build import (
     BuildArtifact,
     BundleMode,
     FreezeManifest,
-    UACLevel,
+
 )
-from qyro.domain.errors import QyroError
-
-
-class FreezeExecutionError(QyroError):
-    """Raised when PyInstaller returns a non-zero exit code."""
-
-    def __init__(self, command: str, exit_code: int, output: str):
-        super().__init__(
-            f"Freezing failed with exit code {exit_code}.",
-            hint=f"Check PyInstaller logs below:\n{output[-1500:] if len(output) > 1500 else output}",
-        )
-        self.command = command
-        self.exit_code = exit_code
-        self.output = output
+from qyro.domain.errors import QyroError, FreezeExecutionError
 
 
 class PyInstallerFreezer(FreezerPort):
@@ -88,6 +75,10 @@ class PyInstallerFreezer(FreezerPort):
         cmd.extend(["--workpath", str(build_work_dir)])
         cmd.extend(["--specpath", str(spec_dir)])
 
+        is_mac_target = manifest.target_platform.lower() in ("mac", "macos", "darwin") or (
+            manifest.target_platform == "auto" and sys.platform == "darwin"
+        )
+
         # Bundle mode (onedir vs onefile)
         if manifest.bundle_mode == BundleMode.ONEFILE:
             cmd.append("--onefile")
@@ -95,10 +86,14 @@ class PyInstallerFreezer(FreezerPort):
             cmd.append("--onedir")
 
         # Debug & Console
-        if manifest.debug.console_window or manifest.debug.enabled:
+        is_console_mode = manifest.debug.console_window or manifest.debug.enabled
+        if is_console_mode:
             cmd.append("--console")
         else:
             cmd.append("--windowed")  # GUI app: no terminal popup
+
+        if is_mac_target and not is_console_mode and "--windowed" not in cmd and "-w" not in cmd:
+            cmd.append("-w")  # Force generation of .app bundle on macOS for windowed GUI apps
 
         if manifest.debug.bootloader_debug:
             cmd.append("--debug=all")
@@ -111,8 +106,18 @@ class PyInstallerFreezer(FreezerPort):
         if manifest.target_platform == "windows" and manifest.uac.ui_access:
             cmd.append("--uac-uiaccess")
 
-        # Icon
-        if manifest.icon_path:
+        # macOS Bundle Identifier
+        if is_mac_target:
+            bundle_id = manifest.mac_bundle_identifier or manifest.suggest_bundle_id()
+            if bundle_id:
+                cmd.extend(["--osx-bundle-identifier", bundle_id])
+
+        # Icon handling
+        if is_mac_target:
+            icns_file = self._handle_mac_icon(project_root, dist_dir, manifest)
+            if icns_file and icns_file.exists():
+                cmd.extend(["--icon", str(icns_file)])
+        elif manifest.icon_path:
             icon_file = project_root / manifest.icon_path
             if icon_file.exists():
                 cmd.extend(["--icon", str(icon_file)])
@@ -194,6 +199,14 @@ class PyInstallerFreezer(FreezerPort):
         if leftover_nested_build.exists() and leftover_nested_build.is_dir():
             shutil.rmtree(leftover_nested_build, ignore_errors=True)
 
+        # Post-process for macOS app bundle
+        if is_mac_target:
+            app_bundle = dist_dir / f"{manifest.app_name}.app"
+            if app_bundle.exists():
+                self._remove_unwanted_pyinstaller_files(app_bundle)
+                self._copy_mac_resources(project_root, app_bundle)
+                self._purge_excluded_binaries(app_bundle, manifest)
+
         # Calculate output executable path and size
         if manifest.bundle_mode == BundleMode.ONEFILE:
             ext = ".exe" if manifest.target_platform == "windows" else ""
@@ -204,6 +217,10 @@ class PyInstallerFreezer(FreezerPort):
             out_folder = dist_dir / manifest.app_name
             ext = ".exe" if manifest.target_platform == "windows" else ""
             out_exe = out_folder / f"{manifest.app_name}{ext}"
+            if is_mac_target and (dist_dir / f"{manifest.app_name}.app").exists():
+                out_folder = dist_dir / f"{manifest.app_name}.app"
+                out_exe = out_folder / "Contents" / "MacOS" / manifest.app_name
+            self._purge_excluded_binaries(out_folder, manifest)
             size = self._calc_dir_size(out_folder)
 
         return BuildArtifact(
@@ -228,3 +245,142 @@ class PyInstallerFreezer(FreezerPort):
             if entry.is_file():
                 total += entry.stat().st_size
         return total
+
+    def _handle_mac_icon(
+        self,
+        project_root: Path,
+        target_dir: Path,
+        manifest: FreezeManifest,
+    ) -> Optional[Path]:
+        """Auto-generates target/Icon.icns from source icon using iconutil if needed."""
+        if manifest.icon_path:
+            icon_p = project_root / manifest.icon_path
+            if icon_p.exists() and icon_p.suffix.lower() == ".icns":
+                return icon_p
+
+        icns_path = target_dir / "Icon.icns"
+        if icns_path.exists():
+            return icns_path
+
+        candidates = [
+            project_root / "resources" / "mac" / "icons" / "1024.png",
+            project_root / "resources" / "mac" / "icon.png",
+            project_root / "resources" / "base" / "icons" / "icon.png",
+            project_root / "resources" / "base" / "icon.png",
+            project_root / "resources" / "icon.png",
+            project_root / "icon.png",
+        ]
+
+        source_icon = next((c for c in candidates if c.exists()), None)
+        if not source_icon:
+            return None
+
+        iconset_dir = target_dir / "Icon.iconset"
+        iconset_dir.mkdir(parents=True, exist_ok=True)
+        sizes = [
+            (16, 1), (16, 2),
+            (32, 1), (32, 2),
+            (128, 1), (128, 2),
+            (256, 1), (256, 2),
+            (512, 1), (512, 2),
+        ]
+
+        try:
+            from PIL import Image
+            img = Image.open(source_icon)
+            for size, scale in sizes:
+                px = size * scale
+                dest_name = f"icon_{size}x{size}"
+                if scale != 1:
+                    dest_name += f"@{scale}x"
+                dest_name += ".png"
+                resized = img.resize((px, px), Image.Resampling.LANCZOS)
+                resized.save(iconset_dir / dest_name)
+        except Exception:
+            for size, scale in sizes:
+                dest_name = f"icon_{size}x{size}"
+                if scale != 1:
+                    dest_name += f"@{scale}x"
+                dest_name += ".png"
+                shutil.copy(source_icon, iconset_dir / dest_name)
+
+        try:
+            subprocess.run(
+                ["iconutil", "-c", "icns", str(iconset_dir), "-o", str(icns_path)],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            return icns_path
+        except (subprocess.SubprocessError, FileNotFoundError):
+            return None
+
+    def _remove_unwanted_pyinstaller_files(self, app_bundle: Path) -> None:
+        """Removes unwanted folders like include, lib, lib2to3 inside Contents/Resources."""
+        contents_res = app_bundle / "Contents" / "Resources"
+        if not contents_res.exists():
+            return
+
+        for unwanted in ("include", "lib", "lib2to3"):
+            target = contents_res / unwanted
+            if target.exists() or target.is_symlink():
+                try:
+                    if target.is_dir() and not target.is_symlink():
+                        shutil.rmtree(target, ignore_errors=True)
+                    else:
+                        os.unlink(target)
+                except OSError:
+                    pass
+
+    def _copy_mac_resources(self, project_root: Path, app_bundle: Path) -> None:
+        """Copies resources to Contents/Resources inside the .app bundle."""
+        res_dest = app_bundle / "Contents" / "Resources"
+        res_dest.mkdir(parents=True, exist_ok=True)
+
+        resource_sources = [
+            project_root / "resources",
+            project_root / "src" / "main" / "resources",
+            project_root / "src" / "freeze",
+        ]
+
+        for src_dir in resource_sources:
+            if src_dir.exists() and src_dir.is_dir():
+                for item in src_dir.iterdir():
+                    dest = res_dest / item.name
+                    if item.is_dir():
+                        shutil.copytree(item, dest, dirs_exist_ok=True)
+                    else:
+                        shutil.copy2(item, dest)
+
+    def _purge_excluded_binaries(self, output_dir: Path, manifest: FreezeManifest) -> None:
+        """Purges C++ frameworks, dylibs, and binary plugins for modules listed in exclude_modules."""
+        if not manifest.optimization.exclude_modules or not output_dir.exists():
+            return
+
+        for exc in manifest.optimization.exclude_modules:
+            parts = exc.split(".")
+            short_name = parts[-1]
+
+            targets = [
+                f"{short_name}.framework",
+                f"{short_name}.abi3.so",
+                f"{short_name}.so",
+                f"{short_name}.pyd",
+                f"{short_name}.dylib",
+                f"libQt6{short_name[2:] if short_name.startswith('Qt') else short_name}.dylib",
+                f"libQt5{short_name[2:] if short_name.startswith('Qt') else short_name}.dylib",
+            ]
+
+            for path in list(output_dir.rglob("*")):
+                if not path.exists():
+                    continue
+                name = path.name
+                if name in targets or (path.is_dir() and name.endswith(".framework") and short_name in name):
+                    try:
+                        if path.is_dir() and not path.is_symlink():
+                            shutil.rmtree(path, ignore_errors=True)
+                        else:
+                            os.unlink(path)
+                    except OSError:
+                        pass
+

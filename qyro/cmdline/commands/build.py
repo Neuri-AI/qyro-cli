@@ -48,6 +48,14 @@ class BuildCommand:
         )
 
         parser.add_argument(
+            "--console",
+            dest="console",
+            action="store_true",
+            default=None,
+            help="Show attached console window for debugging stdout/stderr.",
+        )
+
+        parser.add_argument(
             "--uac",
             dest="uac",
             action="store_true",
@@ -83,9 +91,9 @@ class BuildCommand:
         parser.add_argument(
             "--target",
             dest="target",
-            choices=["desktop", "android", "ios"],
+            choices=["desktop", "windows", "win", "mac", "macos", "darwin", "linux", "android", "ios"],
             default="desktop",
-            help="Build target platform.",
+            help="Build target platform (e.g. desktop, macos, windows, linux, android, ios).",
         )
 
         parser.add_argument(
@@ -102,11 +110,13 @@ class BuildCommand:
     ) -> int:
         c = container or get_container()
 
+        target_str = str(getattr(args, "target", "desktop")).lower()
+
         # Handle mobile targets if requested
-        if getattr(args, "target", "desktop") in ("android", "ios"):
+        if target_str in ("android", "ios"):
             target = (
                 MobileTarget.ANDROID
-                if args.target == "android"
+                if target_str == "android"
                 else MobileTarget.IOS
             )
             if hasattr(c, "mobile_build_use_case"):
@@ -120,6 +130,15 @@ class BuildCommand:
                 return 1
             return 0
 
+        # Determine profile from --profile or --target if user specifies platform OS
+        profile_val = getattr(args, "profile", "release")
+        if target_str in ("windows", "win"):
+            profile_val = "windows"
+        elif target_str in ("mac", "macos", "darwin"):
+            profile_val = "mac"
+        elif target_str in ("linux",):
+            profile_val = "linux"
+
         # Determine bundle mode
         bundle = "onefile" if getattr(args, "is_onefile", False) else getattr(args, "bundle_mode", None)
 
@@ -127,8 +146,9 @@ class BuildCommand:
             c.freeze_desktop_use_case.execute(
                 project_root=Path.cwd(),
                 bundle=bundle,
-                profile=getattr(args, "profile", "release"),
+                profile=profile_val,
                 debug=getattr(args, "debug", None),
+                console=getattr(args, "console", None),
                 uac=getattr(args, "uac", None),
                 clean=getattr(args, "clean", None),
                 interactive=getattr(args, "interactive", False),

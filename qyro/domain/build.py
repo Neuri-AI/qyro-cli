@@ -101,6 +101,7 @@ class FreezeManifest:
     bundle_mode: BundleMode = BundleMode.ONEDIR
     binding: Union[Binding, str] = "kivy"
     icon_path: Optional[str] = None
+    mac_bundle_identifier: Optional[str] = None
     uac: UACConfig = field(default_factory=UACConfig)
     debug: DebugConfig = field(default_factory=DebugConfig)
     optimization: OptimizationConfig = field(default_factory=OptimizationConfig)

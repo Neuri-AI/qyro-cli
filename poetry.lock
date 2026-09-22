@@ -866,4 +866,4 @@ mobile = ["buildozer"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.16"
-content-hash = "8fefdaec9d65cb10671c22f50cad8ac4628f39d4fde00c35841f7eab3bfe9c9e"
+content-hash = "bcb49f8d4e1b776ad9af72511f34c5d0f9db54794e6bee12bd650f1e6b47a888"

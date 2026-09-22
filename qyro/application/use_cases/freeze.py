@@ -59,6 +59,7 @@ class FreezeDesktopUseCase:
         bundle: Optional[str] = None,
         profile: str = "release",
         debug: Optional[bool] = None,
+        console: Optional[bool] = None,
         uac: Optional[bool] = None,
         clean: Optional[bool] = None,
         extra_args: Optional[List[str]] = None,
@@ -68,19 +69,30 @@ class FreezeDesktopUseCase:
 
         # Step 1: Detect Host / Target Platform
         current_platform = self._detect_platform()
+        active_profile = profile.lower() if profile else current_platform
+
+        # Normalize macos / mac / windows / win / linux profile names
+        target_override = None
+        if active_profile in ("mac", "macos", "darwin", "osx"):
+            target_override = "mac"
+        elif active_profile in ("windows", "win", "win32"):
+            target_override = "windows"
+        elif active_profile in ("linux", "gnu"):
+            target_override = "linux"
 
         # Step 2: Activate platform and profile in SettingsPort if supported
         if hasattr(self._settings, "activate_profile"):
             self._settings.activate_profile(current_platform)
-            if profile and profile.lower() != current_platform:
-                self._settings.activate_profile(profile)
+            if active_profile and active_profile != current_platform:
+                self._settings.activate_profile(active_profile)
 
         # Step 3: Parse and merge settings and build.json
         manifest = self._load_manifest(
             root=root,
-            platform_name=current_platform,
+            platform_name=target_override or current_platform,
             cli_bundle=bundle,
             cli_debug=debug,
+            cli_console=console,
             cli_uac=uac,
             cli_clean=clean,
         )
@@ -126,7 +138,8 @@ class FreezeDesktopUseCase:
         platform_name: str,
         cli_bundle: Optional[str],
         cli_debug: Optional[bool],
-        cli_uac: Optional[bool],
+        cli_console: Optional[bool] = None,
+        cli_uac: Optional[bool] = None,
         cli_clean: Optional[bool] = None,
     ) -> FreezeManifest:
         # Load from build.json if present
@@ -199,7 +212,7 @@ class FreezeDesktopUseCase:
             dbg_bootloader = False
         elif isinstance(debug_raw, dict):
             dbg_enabled = bool(debug_raw.get("enabled", False))
-            dbg_console = bool(debug_raw.get("console", False))
+            dbg_console = bool(debug_raw.get("console", debug_raw.get("console_window", False)))
             dbg_unstripped = bool(debug_raw.get("unstripped", False))
             dbg_bootloader = bool(debug_raw.get("bootloader_debug", False))
         else:
@@ -210,7 +223,13 @@ class FreezeDesktopUseCase:
 
         if cli_debug is not None:
             dbg_enabled = cli_debug
-            dbg_console = cli_debug
+            if cli_debug:
+                dbg_console = True
+
+        if cli_console is not None:
+            dbg_console = cli_console
+            if cli_console:
+                dbg_enabled = True
 
         debug_config = DebugConfig(
             enabled=dbg_enabled,
@@ -247,6 +266,12 @@ class FreezeDesktopUseCase:
         dedup_hidden = list(dict.fromkeys(hidden_imports))
 
         icon_path = build_data.get("icon") or self._settings.get_optional("icon", None)
+        mac_bundle_identifier = (
+            build_data.get("mac_bundle_identifier")
+            or build_data.get("bundle_identifier")
+            or self._settings.get_optional("mac_bundle_identifier")
+            or self._settings.get_optional("bundle_identifier")
+        )
         extra_args = build_data.get("extra_args", [])
 
         return FreezeManifest(
@@ -258,6 +283,7 @@ class FreezeDesktopUseCase:
             bundle_mode=bundle_mode,
             binding=binding,
             icon_path=icon_path,
+            mac_bundle_identifier=mac_bundle_identifier,
             uac=uac_config,
             debug=debug_config,
             optimization=opt_config,
@@ -292,3 +318,5 @@ class FreezeDesktopUseCase:
             self._ui.info("  • [bold]UAC Manifest:[/bold] Administrator Privilege Elevation Enabled (requireAdministrator)")
         if artifact.debug_mode:
             self._ui.info("  • [bold]Debug:[/bold] Active console attached for stdout/stderr debugging")
+            if artifact.manifest_used.target_platform.lower() in ("mac", "macos", "darwin"):
+                self._ui.info(f"    [dim]macOS Log Stream: log stream --process {artifact.manifest_used.app_name}[/dim]")

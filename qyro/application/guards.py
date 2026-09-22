@@ -23,7 +23,7 @@ class ProjectGuards:
 
     def require_frozen_app(self) -> None:
         self.require_existing_project()
-        freeze_dir = str(self._settings.get_optional("freeze_dir", "target"))
+        freeze_dir = str(self._settings.get_optional("freeze_dir", "build"))
         if not self._files.exists(freeze_dir):
             raise FrozenAppNotFoundError(freeze_dir)
 

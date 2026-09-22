@@ -25,6 +25,7 @@ from qyro.domain.project import (
     ProjectConfig,
     TargetPlatform,
 )
+from qyro.domain.build import FreezeManifest, BuildArtifact, OptimizationConfig
 
 
 # --- Presentation -----------------------------------------------------------
@@ -334,7 +335,39 @@ class ProgressPort(Protocol):
         ...
 
 
+class FreezerPort(Protocol):
+    """Executes Python application freezing (e.g. PyInstaller adapter)."""
+
+    def freeze(
+        self,
+        project_root: Path,
+        manifest: FreezeManifest,
+        extra_args: Optional[list[str]] = None,
+    ) -> BuildArtifact: ...
+
+
+class FrameworkHookResolverPort(Protocol):
+    """Resolves framework-specific hidden imports and data files (Kivy, Qt, Tkinter)."""
+
+    def resolve_args(
+        self,
+        project_root: Path,
+        manifest: FreezeManifest,
+    ) -> list[str]: ...
+
+
+class BinaryOptimizerPort(Protocol):
+    """Optimizes compiled binary artifacts via UPX and stripping."""
+
+    def optimize(
+        self,
+        artifact: BuildArtifact,
+        config: OptimizationConfig,
+    ) -> None: ...
+
+
 class MobileBuildPort(Protocol):
+
     """
     !EXPERIMENTAL: This module is just for defining mobile target specifications for Android and iOS
 

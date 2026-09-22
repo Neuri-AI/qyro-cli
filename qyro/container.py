@@ -5,8 +5,8 @@ All dependencies between Use Cases, Ports, and Adapters are instantiated here.
 """
 
 from pathlib import Path
-
 from qyro.adapters.cli.console_ui import RichConsoleUI
+from qyro.adapters.cli.progress import RichProgress
 from qyro.adapters.package.metadata import PackageMetadata
 from qyro.adapters.persistence.storage import (
     OsFileSystem,
@@ -23,17 +23,15 @@ from qyro.adapters.templates.fallback import FallbackTemplateProvider
 from qyro.adapters.templates.github_cached import (
     GitHubCachedTemplateProvider,
 )
-from qyro.adapters.cli.progress import RichProgress
+from qyro.adapters.freeze.framework_hooks import FrameworkHookResolver
+from qyro.adapters.freeze.optimizer import BinaryOptimizer
+from qyro.adapters.freeze.pyinstaller_adapter import PyInstallerFreezer
+from qyro.application.use_cases.freeze import FreezeDesktopUseCase
 from qyro.application.use_cases.init import InitProjectUseCase
 from qyro.application.use_cases.version import ShowVersionUseCase
 from qyro.application.use_cases.start import RunApplicationUseCase
 from qyro.application.guards import ProjectGuards
 
-# BUILDERS
-# from qyro.adapters.platform.factory import PlatformStrategyFactory
-# from qyro.adapters.mobile.pyside_deploy import PySideMobileDeployer
-# from qyro.application.use_cases.build import BuildDesktopUseCase
-# from qyro.application.use_cases.mobile_build import MobileBuildUseCase
 
 
 TEMPLATE_ORGANIZATION = "Neuri-AI"
@@ -77,6 +75,16 @@ class Container:
             fallback=bundled_provider,
         )
 
+        self.hook_resolver = FrameworkHookResolver()
+        self.optimizer = BinaryOptimizer(ui=self.ui)
+        self.freezer = PyInstallerFreezer(
+            resolver=self.hook_resolver,
+            ui=self.ui,
+            progress=self.progress,
+        )
+
+
+        #! USE CASES
         self.init_project_use_case = InitProjectUseCase(
             ui=self.ui,
             fs=self.fs,
@@ -97,6 +105,13 @@ class Container:
             app_runner=self.app_runner,
             modules=self.modules,
             guards=self.guards,
+        )
+
+        self.freeze_desktop_use_case = FreezeDesktopUseCase(
+            freezer=self.freezer,
+            settings_repo=self.settings,
+            optimizer=self.optimizer,
+            ui=self.ui,
         )
 
 

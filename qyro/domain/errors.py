@@ -231,6 +231,18 @@ class CredentialsNotConfiguredError(QyroError):
 
 # --- Project generation / build --------------------------------------------
 
+class FreezeExecutionError(QyroError):
+    """Raised when PyInstaller returns a non-zero exit code."""
+
+    def __init__(self, command: str, exit_code: int, output: str):
+        super().__init__(
+            f"Freezing failed with exit code {exit_code}.",
+            hint=f"Check PyInstaller logs below:\n{output[-1500:] if len(output) > 1500 else output}",
+        )
+        self.command = command
+        self.exit_code = exit_code
+        self.output = output
+
 
 class TemplateUnavailableError(QyroError):
     def __init__(self, reason: str):

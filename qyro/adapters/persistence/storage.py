@@ -10,7 +10,7 @@ import json
 import getpass
 from pathlib import Path
 from string import Template
-from typing import Sequence
+from typing import Sequence, Any
 
 from qyro.domain.errors import MissingSettingError
 from qyro.domain.project import ComponentSpec
@@ -155,6 +155,56 @@ class SettingsRepository:
             return self._settings[key]
         except KeyError:
             raise MissingSettingError(key) from None
+
+    def get_optional(self, key: str, default: Any = None) -> Any:
+        return self._settings.get(key, default)
+
+    def set(self, key: str, value: Any) -> None:
+        self._settings[key] = value
+
+    def persist_base(self, values: dict[str, object]) -> None:
+        path = self._root / BASE_SETTINGS
+        path.parent.mkdir(parents=True, exist_ok=True)
+        self._settings.update(values)
+        path.write_text(json.dumps(self._settings, indent=4), encoding="utf-8")
+
+    def activate_profile(self, profile: str) -> None:
+        """Load platform / profile specific JSON from settings/."""
+        candidates = [
+            self._root / "settings" / f"{profile}.json",
+            self._root / "settings" / f"{profile.lower()}.json",
+        ]
+        p_lower = profile.lower()
+        if p_lower in ("windows", "win32", "win"):
+            candidates = [
+                self._root / "settings" / "windows.json",
+                self._root / "settings" / "release.json",
+            ] + candidates
+        elif p_lower in ("linux", "linux2", "gnu"):
+            candidates = [
+                self._root / "settings" / "linux.json",
+            ] + candidates
+        elif p_lower in ("mac", "macos", "darwin", "osx"):
+            candidates = [
+                self._root / "settings" / "macos.json",
+                self._root / "settings" / "mac.json",
+            ] + candidates
+
+        for candidate in candidates:
+            if candidate.exists():
+                try:
+                    data = json.loads(candidate.read_text(encoding="utf-8"))
+                    self._deep_merge(self._settings, data)
+                    return
+                except Exception:
+                    pass
+
+    def _deep_merge(self, base: dict, update: dict) -> None:
+        for k, v in update.items():
+            if isinstance(v, dict) and k in base and isinstance(base[k], dict):
+                self._deep_merge(base[k], v)
+            else:
+                base[k] = v
 
 
 class ComponentFileWriter:

@@ -11,12 +11,13 @@ from . import create
 from . import init
 from . import start
 from . import version
+from . import build
 
 __all__ = [
-    "build",
     "clean",
     "create",
     "init",
     "start",
     "version",
+    "build",
 ]

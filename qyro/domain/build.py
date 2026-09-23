@@ -67,6 +67,7 @@ class DebugConfig:
 class OptimizationConfig:
     upx_enabled: bool = True
     upx_level: int = 9  # 1 to 9
+    upx_dir: Optional[str] = None
     upx_excludes: List[str] = field(default_factory=lambda: [
         "vcruntime140.dll", "python3*.dll", "sdl2.dll", "glew32.dll", "kivy*.pyd"
     ])
@@ -75,6 +76,9 @@ class OptimizationConfig:
     exclude_modules: List[str] = field(default_factory=lambda: [
         "unittest", "test", "pydoc"
     ])
+    exclude_binaries: List[str] = field(default_factory=list)
+    exclude_plugins: List[str] = field(default_factory=list)
+    remove_translations: bool = True
     clean_build: bool = True
 
 

@@ -114,6 +114,11 @@ class Binding(str, Enum):
 
         return self.value
 
+    @property
+    def default_exclude_modules(self) -> tuple[str, ...]:
+        return ("tkinter", "unittest", "test", "pydoc")
+
+
 
 @dataclass
 class ProjectConfig:
@@ -176,6 +181,9 @@ class ProjectConfig:
             "version": str(self.version),
             "binding": self.binding.value,
             "hidden_imports": list(self.DEFAULT_HIDDEN_IMPORTS),
+            "optimization": {
+                "exclude_modules": list(self.binding.default_exclude_modules),
+            },
         }
 
     @property

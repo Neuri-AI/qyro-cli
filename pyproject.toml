@@ -40,6 +40,9 @@ dependencies = [
 desktop = [
     "pyinstaller>=5.13.2,<6.0.0; python_version < '3.8'",
     "pyinstaller>=6.22.3,<7.0.0; python_version >= '3.8'",
+    "pillow>=9.5.0,<10.0.0; python_version < '3.8'",
+    "pillow>=10.4.0,<11.0.0; python_version >= '3.8' and python_version < '3.10'",
+    "pillow>=11.0.0,<13.0.0; python_version >= '3.10'",
 ]
 
 mobile = [

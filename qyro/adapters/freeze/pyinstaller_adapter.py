@@ -5,6 +5,7 @@ Constructs arguments, creates Windows UAC manifests, handles debug/onefile/onedi
 runs the PyInstaller process cleanly, and captures output artifacts.
 """
 
+import fnmatch
 import os
 import shutil
 import subprocess
@@ -41,15 +42,13 @@ class PyInstallerFreezer(FreezerPort):
         self._ui = ui
         self._progress = progress
 
-    def freeze(
+    def build_command(
         self,
         project_root: Path,
         manifest: FreezeManifest,
         extra_args: Optional[List[str]] = None,
-    ) -> BuildArtifact:
-        start_time = time.time()
-
-        # Build PyInstaller command list
+    ) -> List[str]:
+        """Constructs the complete argument list for PyInstaller."""
         cmd = [sys.executable, "-m", "PyInstaller"]
 
         # Target script
@@ -117,9 +116,9 @@ class PyInstallerFreezer(FreezerPort):
             icns_file = self._handle_mac_icon(project_root, dist_dir, manifest)
             if icns_file and icns_file.exists():
                 cmd.extend(["--icon", str(icns_file)])
-        elif manifest.icon_path:
-            icon_file = project_root / manifest.icon_path
-            if icon_file.exists():
+        else:
+            icon_file = self._resolve_icon(project_root, dist_dir, manifest)
+            if icon_file and icon_file.exists():
                 cmd.extend(["--icon", str(icon_file)])
 
         # Hidden imports from manifest
@@ -134,9 +133,32 @@ class PyInstallerFreezer(FreezerPort):
         if manifest.optimization.clean_build:
             cmd.append("--clean")
 
+        # Bytecode optimization flag for PyInstaller 6.6+
+        if manifest.optimization.bytecode_opt > 0:
+            cmd.extend(["--optimize", str(manifest.optimization.bytecode_opt)])
+
+        # Strip binaries (symbol table stripping on Linux/macOS)
+        if manifest.optimization.strip_binaries and not (manifest.target_platform.lower() == "windows"):
+            cmd.append("--strip")
+
         if is_mac_target or not manifest.optimization.upx_enabled:
             cmd.append("--noupx")
         else:
+            # Check for custom upx directory or auto-detect in environment
+            upx_bin = "upx.exe" if manifest.target_platform == "windows" else "upx"
+            upx_dir_to_use = None
+            if manifest.optimization.upx_dir and Path(manifest.optimization.upx_dir).exists():
+                upx_dir_to_use = manifest.optimization.upx_dir
+            elif not shutil.which("upx"):
+                py_prefix = Path(sys.prefix)
+                for search_cand in [py_prefix / "Scripts", py_prefix / "bin", py_prefix]:
+                    if (search_cand / upx_bin).exists():
+                        upx_dir_to_use = str(search_cand)
+                        break
+
+            if upx_dir_to_use:
+                cmd.extend(["--upx-dir", upx_dir_to_use])
+
             for upx_exc in manifest.optimization.upx_excludes:
                 exc_lower = upx_exc.lower()
                 target_p = manifest.target_platform.lower()
@@ -160,6 +182,59 @@ class PyInstallerFreezer(FreezerPort):
             cmd.extend(extra_args)
 
         cmd.append("-y")  # Overwrite output directory without prompting
+        return cmd
+
+    def freeze(
+        self,
+        project_root: Path,
+        manifest: FreezeManifest,
+        extra_args: Optional[List[str]] = None,
+    ) -> BuildArtifact:
+        start_time = time.time()
+
+        build_dir = project_root / "build"
+        build_work_dir = build_dir / "temp"
+        dist_dir = build_dir
+        is_mac_target = manifest.target_platform.lower() in ("mac", "macos", "darwin")
+
+        # Build PyInstaller command list
+        cmd = self.build_command(project_root, manifest, extra_args)
+
+        # Save command to build/pyinstaller_command.txt
+        cmd_str = " ".join(f'"{arg}"' if (" " in arg or not arg) else arg for arg in cmd)
+        build_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            (build_dir / "pyinstaller_command.txt").write_text(cmd_str, encoding="utf-8")
+        except Exception:
+            pass
+
+        # Check UPX availability and notify if missing
+        upx_bin = "upx.exe" if manifest.target_platform == "windows" else "upx"
+        upx_available = bool(shutil.which("upx"))
+        if not upx_available:
+            if manifest.optimization.upx_dir and (Path(manifest.optimization.upx_dir) / upx_bin).exists():
+                upx_available = True
+            else:
+                py_prefix = Path(sys.prefix)
+                for search_cand in [py_prefix / "Scripts", py_prefix / "bin", py_prefix]:
+                    if (search_cand / upx_bin).exists():
+                        upx_available = True
+                        break
+
+        if manifest.optimization.upx_enabled and not is_mac_target and not upx_available:
+            warn_msg = (
+                "⚠️ UPX is enabled in settings, but 'upx' was NOT found in PATH or environment.\n"
+                "   Binary compression will be skipped by PyInstaller.\n"
+                "   To activate UPX:\n"
+                "     • Conda: conda install -c conda-forge upx\n"
+                "     • Chocolatey: choco install upx\n"
+                "     • Or specify 'upx_dir': 'path/to/upx' in settings/windows.json"
+            )
+            if self._ui:
+                self._ui.warning(warn_msg)
+            else:
+                sys.stdout.write(f"\n{warn_msg}\n\n")
+                sys.stdout.flush()
 
         if self._progress:
             self._progress.start(f"Freezing '{manifest.app_name}' with {manifest.binding}...")
@@ -190,6 +265,12 @@ class PyInstallerFreezer(FreezerPort):
 
         if self._progress:
             self._progress.stop()
+
+        # Save PyInstaller engine output to build/pyinstaller_output.log for inspection
+        try:
+            (build_dir / "pyinstaller_output.log").write_text(process.stdout or "", encoding="utf-8")
+        except Exception:
+            pass
 
         if process.returncode != 0:
             raise FreezeExecutionError(
@@ -324,6 +405,81 @@ class PyInstallerFreezer(FreezerPort):
         except (subprocess.SubprocessError, FileNotFoundError):
             return None
 
+    def _resolve_icon(
+        self,
+        project_root: Path,
+        build_dir: Path,
+        manifest: FreezeManifest,
+    ) -> Optional[Path]:
+        """Resolves icon file (.ico for Windows, .ico/.png for Linux) with fallback to base/."""
+        # 1. Explicit icon_path in manifest
+        if manifest.icon_path:
+            p = project_root / manifest.icon_path
+            if p.exists():
+                return p
+
+        platform_name = manifest.target_platform.lower()
+
+        # 2. Search platform-specific icon first, then fallback to base/
+        candidates: List[Path] = [
+            # Platform specific .ico
+            project_root / "resources" / platform_name / "icons" / "Icon.ico",
+            project_root / "resources" / platform_name / "icons" / "icon.ico",
+            project_root / "resources" / platform_name / "Icon.ico",
+            project_root / "resources" / platform_name / "icon.ico",
+            # Base fallback .ico
+            project_root / "resources" / "base" / "icons" / "Icon.ico",
+            project_root / "resources" / "base" / "icons" / "icon.ico",
+            project_root / "resources" / "base" / "Icon.ico",
+            project_root / "resources" / "base" / "icon.ico",
+            # Root resources .ico
+            project_root / "resources" / "icons" / "Icon.ico",
+            project_root / "resources" / "icons" / "icon.ico",
+            project_root / "resources" / "Icon.ico",
+            project_root / "resources" / "icon.ico",
+            project_root / "Icon.ico",
+            project_root / "icon.ico",
+        ]
+
+        for cand in candidates:
+            if cand.exists():
+                return cand
+
+        # 3. Search PNG candidates
+        png_candidates = [
+            project_root / "resources" / platform_name / "icons" / "256.png",
+            project_root / "resources" / platform_name / "icons" / "512.png",
+            project_root / "resources" / platform_name / "icons" / "1024.png",
+            project_root / "resources" / platform_name / "icon.png",
+            project_root / "resources" / "base" / "icons" / "256.png",
+            project_root / "resources" / "base" / "icons" / "512.png",
+            project_root / "resources" / "base" / "icons" / "icon.png",
+            project_root / "resources" / "base" / "icon.png",
+            project_root / "resources" / "icon.png",
+            project_root / "icon.png",
+        ]
+
+        png_source = next((p for p in png_candidates if p.exists()), None)
+        if png_source:
+            if platform_name == "windows":
+                try:
+                    from PIL import Image
+                    ico_target = build_dir / "Icon.ico"
+                    build_dir.mkdir(parents=True, exist_ok=True)
+                    img = Image.open(png_source)
+                    img.save(
+                        ico_target,
+                        format="ICO",
+                        sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)],
+                    )
+                    return ico_target
+                except Exception:
+                    return None
+            else:
+                return png_source
+
+        return None
+
     def _remove_unwanted_pyinstaller_files(self, app_bundle: Path) -> None:
         """Removes unwanted folders like include, lib, lib2to3 inside Contents/Resources."""
         contents_res = app_bundle / "Contents" / "Resources"
@@ -362,11 +518,53 @@ class PyInstallerFreezer(FreezerPort):
                         shutil.copy2(item, dest)
 
     def _purge_excluded_binaries(self, output_dir: Path, manifest: FreezeManifest) -> None:
-        """Purges C++ frameworks, shared objects (.so), DLLs, dylibs, and binary plugins for modules listed in exclude_modules."""
+        """Purges C++ frameworks, shared objects (.so), DLLs, dylibs, and binary plugins for modules listed in exclude_modules and exclude_binaries."""
         if not output_dir.exists():
             return
 
         exclude_modules = set(manifest.optimization.exclude_modules or [])
+        exclude_binaries = list(manifest.optimization.exclude_binaries or [])
+        exclude_plugins = set(manifest.optimization.exclude_plugins or [])
+
+        # Mapping of standard Python/Qt modules to their companion shared libraries / DLLs / pyds
+        COMPANION_BINARIES = {
+            "ssl": ["_ssl.pyd", "libssl*.dll", "libcrypto*.dll", "libssl.so*", "libcrypto.so*"],
+            "_ssl": ["_ssl.pyd", "libssl*.dll", "libcrypto*.dll", "libssl.so*", "libcrypto.so*"],
+            "hashlib": ["_hashlib.pyd", "libcrypto*.dll", "libcrypto.so*"],
+            "_hashlib": ["_hashlib.pyd", "libcrypto*.dll", "libcrypto.so*"],
+            "bz2": ["_bz2.pyd", "*bz2*.dll", "libbz2.so*", "libbz2*.so*"],
+            "_bz2": ["_bz2.pyd", "*bz2*.dll", "libbz2.so*", "libbz2*.so*"],
+            "lzma": ["_lzma.pyd", "*lzma*.dll", "liblzma.so*", "liblzma*.so*"],
+            "_lzma": ["_lzma.pyd", "*lzma*.dll", "liblzma.so*", "liblzma*.so*"],
+            "xml": ["pyexpat.pyd", "*expat*.dll", "libexpat.so*", "libexpat*.so*"],
+            "pyexpat": ["pyexpat.pyd", "*expat*.dll", "libexpat.so*", "libexpat*.so*"],
+            "ctypes": ["_ctypes.pyd", "ffi.dll", "*ffi*.dll", "libffi.so*", "libffi*.so*"],
+            "_ctypes": ["_ctypes.pyd", "ffi.dll", "*ffi*.dll", "libffi.so*", "libffi*.so*"],
+            "asyncio": ["_asyncio.pyd", "_overlapped.pyd"],
+            "_asyncio": ["_asyncio.pyd", "_overlapped.pyd"],
+            "multiprocessing": ["_multiprocessing.pyd"],
+            "_multiprocessing": ["_multiprocessing.pyd"],
+            "decimal": ["_decimal.pyd"],
+            "_decimal": ["_decimal.pyd"],
+            "socket": ["_socket.pyd"],
+            "_socket": ["_socket.pyd"],
+            "select": ["select.pyd"],
+            "sqlite3": ["_sqlite3.pyd", "*sqlite3*.dll", "libsqlite3.so*"],
+            "_sqlite3": ["_sqlite3.pyd", "*sqlite3*.dll", "libsqlite3.so*"],
+            "opengl": ["opengl32sw.dll"],
+            "qtopengl": ["opengl32sw.dll", "Qt6OpenGL.dll", "libQt6OpenGL.so*"],
+            "pyside6.qtopengl": ["opengl32sw.dll", "Qt6OpenGL.dll", "libQt6OpenGL.so*"],
+            "pyqt6.qtopengl": ["opengl32sw.dll", "Qt6OpenGL.dll", "libQt6OpenGL.so*"],
+        }
+
+        # Expand companion binaries from excluded modules
+        for mod in exclude_modules:
+            mod_lower = mod.lower()
+            if mod_lower in COMPANION_BINARIES:
+                exclude_binaries.extend(COMPANION_BINARIES[mod_lower])
+            short = mod_lower.split(".")[-1]
+            if short in COMPANION_BINARIES:
+                exclude_binaries.extend(COMPANION_BINARIES[short])
 
         # Extract lowercase keywords for matching (e.g. 'virtualkeyboard', 'webengine', 'pdf', 'qml', 'quick')
         keywords: set[str] = set()
@@ -403,6 +601,8 @@ class PyInstallerFreezer(FreezerPort):
                 should_delete = False
                 if f_lower in exact_targets:
                     should_delete = True
+                elif any(fnmatch.fnmatch(f_lower, pat.lower()) for pat in exclude_binaries):
+                    should_delete = True
                 else:
                     for kw in keywords:
                         if kw in f_lower:
@@ -438,36 +638,67 @@ class PyInstallerFreezer(FreezerPort):
                     except OSError:
                         pass
 
-        # Perform Qt asset optimization cleanups if clean_build is enabled
+        # 1. Purge translations folders (Windows PySide6/translations, Linux PySide6/Qt/translations, PyQt, etc.)
+        if manifest.optimization.remove_translations or manifest.optimization.clean_build:
+            for trans_dir in list(output_dir.rglob("translations")):
+                if trans_dir.exists() and trans_dir.is_dir():
+                    shutil.rmtree(trans_dir, ignore_errors=True)
+
+        # 2. Purge QML directory if QML was excluded
+        if any("qml" in k or "quick" in k for k in keywords):
+            for qml_dir in list(output_dir.rglob("qml")):
+                if qml_dir.exists() and qml_dir.is_dir():
+                    shutil.rmtree(qml_dir, ignore_errors=True)
+
+        # 3. Purge Qt plugins based on exclude_plugins configuration or clean_build defaults
+        for plugins_dir in list(output_dir.rglob("plugins")):
+            if not plugins_dir.exists() or not plugins_dir.is_dir():
+                continue
+
+            # If exclude_plugins is configured
+            if exclude_plugins:
+                if "*" in exclude_plugins or "all" in exclude_plugins:
+                    # Remove all plugin categories EXCEPT 'platforms' (needed to show UI window)
+                    for item in plugins_dir.iterdir():
+                        if item.name.lower() != "platforms":
+                            if item.is_dir():
+                                shutil.rmtree(item, ignore_errors=True)
+                            else:
+                                try:
+                                    os.unlink(item)
+                                except OSError:
+                                    pass
+                else:
+                    for plug_pattern in exclude_plugins:
+                        for item in plugins_dir.iterdir():
+                            if fnmatch.fnmatch(item.name.lower(), plug_pattern.lower()):
+                                if item.name.lower() != "platforms":
+                                    if item.is_dir():
+                                        shutil.rmtree(item, ignore_errors=True)
+                                    else:
+                                        try:
+                                            os.unlink(item)
+                                        except OSError:
+                                            pass
+
+            # If clean_build is active, remove safe-to-purge desktop plugins by default
+            if manifest.optimization.clean_build:
+                for default_plug in (
+                    "generic",
+                    "egldeviceintegrations",
+                    "wayland-decoration-client",
+                    "wayland-graphics-integration-client",
+                    "wayland-shell-integration",
+                ):
+                    plug_p = plugins_dir / default_plug
+                    if plug_p.exists():
+                        shutil.rmtree(plug_p, ignore_errors=True)
+
+        # 4. Purge package metadata directories (*.dist-info) in clean_build
         if manifest.optimization.clean_build:
-            for qt_binding in ("PySide6", "PyQt6", "PySide2", "PyQt5"):
-                for qt_path in list(output_dir.rglob(f"{qt_binding}/Qt")) + list(output_dir.rglob(f"{qt_binding}/Qt6")):
-                    if not qt_path.exists() or not qt_path.is_dir():
-                        continue
-
-                    # 1. Purge translations folder (hundreds of .qm files saving 25MB+)
-                    trans_dir = qt_path / "translations"
-                    if trans_dir.exists() and trans_dir.is_dir():
-                        shutil.rmtree(trans_dir, ignore_errors=True)
-
-                    # 2. Purge qml folder if QML is excluded
-                    if any("qml" in k or "quick" in k for k in keywords):
-                        qml_dir = qt_path / "qml"
-                        if qml_dir.exists() and qml_dir.is_dir():
-                            shutil.rmtree(qml_dir, ignore_errors=True)
-
-                    # 3. Purge unused heavyweight plugins (egldeviceintegrations, wayland-*)
-                    plugins_dir = qt_path / "plugins"
-                    if plugins_dir.exists() and plugins_dir.is_dir():
-                        for plug_name in (
-                            "egldeviceintegrations",
-                            "wayland-decoration-client",
-                            "wayland-graphics-integration-client",
-                            "wayland-shell-integration",
-                        ):
-                            plug_p = plugins_dir / plug_name
-                            if plug_p.exists():
-                                shutil.rmtree(plug_p, ignore_errors=True)
+            for dist_info in list(output_dir.rglob("*.dist-info")):
+                if dist_info.exists() and dist_info.is_dir():
+                    shutil.rmtree(dist_info, ignore_errors=True)
 
         # Cleanup Pass: Purge any broken symlinks remaining anywhere in output_dir
         for root, dirs, files in os.walk(str(output_dir), topdown=False):

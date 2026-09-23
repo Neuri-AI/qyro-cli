@@ -6,8 +6,10 @@ UAC elevation, onefile/onedir modes, debug flags, performance optimizations,
 and bindings (PyQt5/6, PySide6/2, Kivy, Tkinter).
 """
 
+import datetime
 import json
 import os
+import shutil
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -23,10 +25,13 @@ from qyro.domain.build import (
     BundleMode,
     DebugConfig,
     FreezeManifest,
+    KivyConfig,
     OptimizationConfig,
     UACConfig,
     UACLevel,
 )
+from qyro.domain.errors import QyroError
+
 
 class FreezeDesktopUseCase:
     """
@@ -94,8 +99,29 @@ class FreezeDesktopUseCase:
             cli_clean=clean,
         )
 
+        # Setup build log tracker
+        build_dir = root / "build"
+        build_dir.mkdir(parents=True, exist_ok=True)
+        log_entries: List[str] = []
+
+        def log_step(msg: str) -> None:
+            ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            log_entries.append(f"[{ts}] {msg}")
+
+        log_step(f"Qyro Freeze started for project '{root.name}'")
+        log_step(f"Target platform: {target_override or current_platform} (Host: {current_platform})")
+        log_step(f"Binding: {manifest.binding}, Bundle mode: {manifest.bundle_mode.value}")
+        log_step(f"Bytecode Opt: {manifest.optimization.bytecode_opt}, UPX: {manifest.optimization.upx_enabled}")
+        if manifest.optimization.exclude_binaries:
+            log_step(f"Excluded binaries: {', '.join(manifest.optimization.exclude_binaries)}")
+        if manifest.optimization.exclude_plugins:
+            log_step(f"Excluded plugins: {', '.join(manifest.optimization.exclude_plugins)}")
+        if manifest.optimization.exclude_modules:
+            log_step(f"Excluded modules ({len(manifest.optimization.exclude_modules)} total)")
+
         # Step 4: Validate manifest
         manifest.validate()
+        log_step("Manifest validated successfully")
 
         # Step 5: Interactive confirmation if requested
         if interactive:
@@ -108,16 +134,28 @@ class FreezeDesktopUseCase:
         )
 
         # Step 7: Execute Freezing via FreezerPort
+        log_step("Invoking PyInstaller packaging engine...")
         artifact = self._freezer.freeze(
             project_root=root,
             manifest=manifest,
             extra_args=extra_args,
         )
+        log_step(f"PyInstaller packaging completed in {artifact.duration_seconds:.2f}s")
+        log_step(f"Intermediate executable generated: {artifact.executable_path}")
 
         # Step 8: Apply binary optimizations (UPX, stripping)
+        log_step("Applying post-freeze binary optimizations...")
         self._optimizer.optimize(artifact, manifest.optimization)
+        log_step("Binary optimizations completed")
 
-        # Step 9: Report results cleanly
+        # Step 9: Save build log to build/build_log.txt
+        log_step(f"Build finished successfully. Final output: {artifact.output_dir} ({artifact.size_bytes:,} bytes)")
+        try:
+            (build_dir / "build_log.txt").write_text("\n".join(log_entries) + "\n", encoding="utf-8")
+        except Exception:
+            pass
+
+        # Step 10: Report results cleanly
         self._report_success(artifact)
 
         return artifact
@@ -245,12 +283,16 @@ class FreezeDesktopUseCase:
         opt_config = OptimizationConfig(
             upx_enabled=bool(opt_raw.get("upx_enabled", True)),
             upx_level=int(opt_raw.get("upx_level", 9)),
+            upx_dir=opt_raw.get("upx_dir", None),
             upx_excludes=opt_raw.get("upx_excludes", [
                 "vcruntime140.dll", "python3*.dll", "sdl2.dll", "glew32.dll", "kivy*.pyd"
             ]),
             bytecode_opt=int(opt_raw.get("bytecode_opt", 1)),
             strip_binaries=bool(opt_raw.get("strip_binaries", True)),
             exclude_modules=opt_raw.get("exclude_modules", ["unittest", "test", "pydoc"]),
+            exclude_binaries=opt_raw.get("exclude_binaries", []),
+            exclude_plugins=opt_raw.get("exclude_plugins", []),
+            remove_translations=bool(opt_raw.get("remove_translations", True)),
             clean_build=clean_build,
         )
 
@@ -317,3 +359,39 @@ class FreezeDesktopUseCase:
             self._ui.info("  • [bold]Debug:[/bold] Active console attached for stdout/stderr debugging")
             if artifact.manifest_used.target_platform.lower() in ("mac", "macos", "darwin"):
                 self._ui.info(f"    [dim]macOS Log Stream: log stream --process {artifact.manifest_used.app_name}[/dim]")
+
+        # Optimizations reported
+        opt = artifact.manifest_used.optimization
+        if opt.bytecode_opt > 0:
+            self._ui.info(f"  • [bold]Bytecode Opt:[/bold] Level {opt.bytecode_opt} (-O{opt.bytecode_opt})")
+
+        is_win = artifact.manifest_used.target_platform.lower() == "windows"
+        if opt.strip_binaries:
+            if is_win:
+                self._ui.info("  • [bold]Strip Binaries:[/bold] [dim]Skipped on Windows (PE format - not applicable)[/dim]")
+            else:
+                self._ui.info("  • [bold]Strip Binaries:[/bold] [green]Active[/green] (symbol tables stripped)")
+
+        if opt.upx_enabled and not (artifact.manifest_used.target_platform.lower() in ("mac", "macos", "darwin")):
+            upx_bin = "upx.exe" if is_win else "upx"
+            upx_found = bool(shutil.which("upx"))
+            if not upx_found:
+                if opt.upx_dir and (Path(opt.upx_dir) / upx_bin).exists():
+                    upx_found = True
+                else:
+                    py_prefix = Path(sys.prefix)
+                    for search_cand in [py_prefix / "Scripts", py_prefix / "bin", py_prefix]:
+                        if (search_cand / upx_bin).exists():
+                            upx_found = True
+                            break
+            if upx_found:
+                self._ui.info(f"  • [bold]UPX Compression:[/bold] [green]Active[/green] (Level {opt.upx_level})")
+            else:
+                self._ui.info("  • [bold]UPX Compression:[/bold] [yellow]Inactive (UPX binary not found in PATH/environment)[/yellow]")
+
+        # Report build logs location
+        build_log_file = artifact.output_dir.parent / "build_log.txt"
+        if not build_log_file.exists():
+            build_log_file = artifact.output_dir / "build_log.txt"
+        if build_log_file.exists():
+            self._ui.info(f"  • [bold #38bdf8]Build Log:[/bold #38bdf8] {build_log_file}")

@@ -91,12 +91,13 @@ class FrameworkHookResolver(FrameworkHookResolverPort):
     ) -> List[str]:
         args = self._resolve_qt("PySide6")
 
-        # Check for QML / Quick in project
+        # Check for QML / Quick in project only if not explicitly excluded
+        user_excludes = {m.lower() for m in manifest.optimization.exclude_modules}
         if self._has_qml(project_root):
-            args.extend([
-                "--hidden-import", "PySide6.QtQuick",
-                "--hidden-import", "PySide6.QtQml",
-            ])
+            if "pyside6.qtquick" not in user_excludes:
+                args.extend(["--hidden-import", "PySide6.QtQuick"])
+            if "pyside6.qtqml" not in user_excludes:
+                args.extend(["--hidden-import", "PySide6.QtQml"])
 
         return args
 
@@ -261,7 +262,13 @@ class FrameworkHookResolver(FrameworkHookResolverPort):
         return ";" if manifest.target_platform == "windows" else ":"
 
     def _has_qml(self, project_root: Path) -> bool:
-        return any(project_root.rglob("*.qml"))
+        # Avoid detecting .qml in build directories or virtual environments
+        for path in project_root.rglob("*.qml"):
+            rel_parts = path.relative_to(project_root).parts
+            if any(part in ("build", "dist", ".git", ".venv", "venv", "temp") for part in rel_parts):
+                continue
+            return True
+        return False
 
     def _resolve_competing_framework_exclusions(
         self,

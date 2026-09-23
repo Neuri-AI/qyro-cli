@@ -338,6 +338,13 @@ class ProgressPort(Protocol):
 class FreezerPort(Protocol):
     """Executes Python application freezing (e.g. PyInstaller adapter)."""
 
+    def build_command(
+        self,
+        project_root: Path,
+        manifest: FreezeManifest,
+        extra_args: Optional[list[str]] = None,
+    ) -> list[str]: ...
+
     def freeze(
         self,
         project_root: Path,

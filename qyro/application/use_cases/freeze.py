@@ -23,13 +23,10 @@ from qyro.domain.build import (
     BundleMode,
     DebugConfig,
     FreezeManifest,
-    KivyConfig,
     OptimizationConfig,
     UACConfig,
     UACLevel,
 )
-from qyro.domain.errors import QyroError
-
 
 class FreezeDesktopUseCase:
     """

@@ -44,7 +44,7 @@ class RunApplicationUseCase:
             raise MissingBindingError(Binding.values())
 
         if not self.modules.is_installed(binding.import_name):
-            raise MissingBindingError((binding.value))
+            raise MissingBindingError((binding.value,))
 
         current_dir = self.fs.resolve(".")
 

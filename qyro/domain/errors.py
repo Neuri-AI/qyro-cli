@@ -155,7 +155,11 @@ class MissingDependencyError(QyroError):
 
 
 class MissingBindingError(QyroError):
-    def __init__(self, candidates: tuple):
+    def __init__(self, candidates):
+        if isinstance(candidates, str):
+            candidates = (candidates,)
+        candidates = tuple(candidates)
+
         names = ", ".join(candidates)
 
         if len(candidates) == 1:

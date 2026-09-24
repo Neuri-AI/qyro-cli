@@ -120,7 +120,9 @@ class FrameworkHookResolver(FrameworkHookResolverPort):
         project_root: Path,
         manifest: FreezeManifest,
     ) -> List[str]:
-        return self._resolve_qt("PySide2")
+        args = self._resolve_qt("PySide2")
+        args.extend(["--collect-all", "PySide2"])
+        return args
 
     def _resolve_kivy(
         self,

@@ -114,6 +114,8 @@ class FreezeManifest:
     hidden_imports: List[str] = field(default_factory=lambda: list(ProjectConfig.DEFAULT_HIDDEN_IMPORTS))
     resources_dir: Optional[str] = "resources"
     extra_pyinstaller_args: List[str] = field(default_factory=list)
+    paths: List[str] = field(default_factory=list)
+    collect_all: List[str] = field(default_factory=list)
 
     @property
     def binding_enum(self) -> Binding:

@@ -175,6 +175,14 @@ class PyInstallerFreezer(FreezerPort):
         for exc_mod in manifest.optimization.exclude_modules:
             cmd.extend(["--exclude-module", exc_mod])
 
+        # Additional search paths for modules and DLLs
+        for p in manifest.paths:
+            cmd.extend(["--paths", str(p)])
+
+        # Packages to collect completely (submodules, data, binaries)
+        for ca in manifest.collect_all:
+            cmd.extend(["--collect-all", ca])
+
         # Extra PyInstaller arguments
         if manifest.extra_pyinstaller_args:
             cmd.extend(manifest.extra_pyinstaller_args)
@@ -243,11 +251,17 @@ class PyInstallerFreezer(FreezerPort):
 
         # Run PyInstaller subprocess
         env = dict(os.environ)
+
+        # Filter out site-packages from PYTHONPATH to avoid PyInstaller DEPRECATION warning / foreign env error
         existing_py_path = env.get("PYTHONPATH", "")
+        cleaned_paths: List[str] = []
+        if existing_py_path:
+            for p in existing_py_path.split(os.pathsep):
+                if p and "site-packages" not in p.lower():
+                    cleaned_paths.append(p)
+
         env["PYTHONPATH"] = (
-            str(project_root) + os.pathsep + existing_py_path
-            if existing_py_path
-            else str(project_root)
+            str(project_root) + (os.pathsep + os.pathsep.join(cleaned_paths) if cleaned_paths else "")
         )
 
         # Bytecode optimization flag
@@ -592,11 +606,20 @@ class PyInstallerFreezer(FreezerPort):
             ])
 
         # Walk bottom-up to safely delete files and subdirectories
+        PROTECTED_CORE = (
+            "qtcore", "qtgui", "qtwidgets", "shiboken", "qwindows",
+            "python3", "vcruntime", "base_library", "pyiboot01"
+        )
+
         for root, dirs, files in os.walk(str(output_dir), topdown=False):
             # Check files and symlinks
             for f in files:
                 file_p = Path(root) / f
                 f_lower = f.lower()
+
+                # Core runtime files are strictly protected from exclusion purging
+                if any(prot in f_lower for prot in PROTECTED_CORE):
+                    continue
 
                 should_delete = False
                 if f_lower in exact_targets:

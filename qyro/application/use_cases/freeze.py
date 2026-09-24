@@ -311,7 +311,23 @@ class FreezeDesktopUseCase:
             or self._settings.get_optional("mac_bundle_identifier")
             or self._settings.get_optional("bundle_identifier")
         )
-        extra_args = build_data.get("extra_args", [])
+        extra_args = list(build_data.get("extra_args", []))
+        settings_extra = (
+            self._settings.get_optional("extra_pyinstaller_args", [])
+            or self._settings.get_optional("extra_args", [])
+        )
+        if isinstance(settings_extra, list):
+            extra_args.extend(settings_extra)
+
+        paths = list(build_data.get("paths", []))
+        settings_paths = self._settings.get_optional("paths", [])
+        if isinstance(settings_paths, list):
+            paths.extend(settings_paths)
+
+        collect_all = list(build_data.get("collect_all", []))
+        settings_collect_all = self._settings.get_optional("collect_all", [])
+        if isinstance(settings_collect_all, list):
+            collect_all.extend(settings_collect_all)
 
         return FreezeManifest(
             app_name=app_name,
@@ -328,6 +344,8 @@ class FreezeDesktopUseCase:
             optimization=opt_config,
             hidden_imports=dedup_hidden,
             extra_pyinstaller_args=extra_args,
+            paths=paths,
+            collect_all=collect_all,
         )
 
     def _show_interactive_review(self, manifest: FreezeManifest) -> None:

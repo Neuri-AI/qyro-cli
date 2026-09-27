@@ -7,12 +7,10 @@ here now — default bundle id, default base widget per binding, CamelCase
 conversion — which means they're unit-testable without a terminal.
 """
 import sys
-from dataclasses import dataclass
-from typing import Dict, Optional
-from dataclasses import dataclass, field
+import re
 from enum import Enum
 from typing import Dict, Optional
-import re
+from dataclasses import dataclass, field
 from qyro.domain.errors import InvalidComponentTypeError, InvalidBindingError
 from qyro.domain.version import Version
 

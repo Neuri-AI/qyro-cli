@@ -8,7 +8,6 @@ and bindings (PyQt5/6, PySide6/2, Kivy, Tkinter).
 
 import datetime
 import json
-import os
 import shutil
 import sys
 from pathlib import Path
@@ -25,12 +24,10 @@ from qyro.domain.build import (
     BundleMode,
     DebugConfig,
     FreezeManifest,
-    KivyConfig,
     OptimizationConfig,
     UACConfig,
     UACLevel,
 )
-from qyro.domain.errors import QyroError
 
 
 class FreezeDesktopUseCase:

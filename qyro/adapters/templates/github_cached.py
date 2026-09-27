@@ -5,7 +5,6 @@ Fetches official project boilerplate tags from the GitHub API,
 caches them locally, and unpacks the selected template.
 """
 
-import io
 import os
 import shutil
 import zipfile

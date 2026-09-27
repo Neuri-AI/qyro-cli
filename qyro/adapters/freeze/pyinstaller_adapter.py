@@ -23,9 +23,9 @@ from qyro.application.ports import (
 from qyro.domain.build import (
     BuildArtifact,
     BundleMode,
-    FreezeManifest,
-    UACLevel,
+    FreezeManifest
 )
+from PIL import Image
 from qyro.domain.errors import QyroError, FreezeExecutionError
 
 
@@ -399,7 +399,7 @@ class PyInstallerFreezer(FreezerPort):
         ]
 
         try:
-            from PIL import Image
+
             img = Image.open(source_icon)
             for size, scale in sizes:
                 px = size * scale
@@ -486,7 +486,6 @@ class PyInstallerFreezer(FreezerPort):
         if png_source:
             if platform_name == "windows":
                 try:
-                    from PIL import Image
                     ico_target = build_dir / "Icon.ico"
                     build_dir.mkdir(parents=True, exist_ok=True)
                     img = Image.open(png_source)

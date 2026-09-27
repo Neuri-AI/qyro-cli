@@ -4,7 +4,6 @@ Models and contracts used by the Qyro command-line interface.
 """
 
 from argparse import ArgumentParser, Namespace
-from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
 

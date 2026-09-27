@@ -10,7 +10,7 @@ Windows UAC elevation manifests, onefile/onedir modes, and GUI binding hooks
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Optional, Union
 
 from qyro.domain.project import Binding, AddonModule, ProjectConfig
 from qyro.domain.errors import InvalidBindingError

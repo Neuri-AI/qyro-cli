@@ -1,10 +1,9 @@
 # Qyro CLI - Kivy Icon PyInstaller Runtime Hook
 # Executed by PyInstaller at application boot prior to App.run()
-import os
 import sys
 import shutil
 from pathlib import Path
-
+from kivy.config import Config
 
 def _apply_qyro_kivy_icon() -> None:
     """
@@ -52,7 +51,6 @@ def _apply_qyro_kivy_icon() -> None:
             return
 
         try:
-            from kivy.config import Config
             Config.set("kivy", "window_icon", str(user_icon))
         except Exception:
             pass

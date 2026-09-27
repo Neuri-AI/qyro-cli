@@ -12,12 +12,6 @@ from pathlib import Path
 from typing import Any, Optional, Protocol, Sequence
 from qyro.domain.version import Version
 
-from qyro.domain.instructions import (
-    FreezeResult,
-    InstallerResult,
-    RepoResult,
-    UploadResult,
-)
 from qyro.domain.mobile import MobileTarget
 from qyro.domain.project import (
     Binding,
@@ -116,12 +110,6 @@ class FileSystemPort(Protocol):
     def current_user(self) -> str: ...
 
     def render_tree(self, root: str, variables: dict[str, object], exclude: Sequence[str] | None = None) -> None: ...
-
-
-class ProjectScaffolderPort(Protocol):
-    """Materializes a project from a template."""
-
-    def create_project(self, config: ProjectConfig) -> None: ...
 
 
 class ComponentWriterPort(Protocol):
@@ -227,17 +215,6 @@ class AppRunnerPort(Protocol):
     ) -> int: ...
 
 
-class TestRunnerPort(Protocol):
-    """Runs the project's test suite."""
-
-    def run(
-        self,
-        source_root: str,
-        test_directories: Sequence[str],
-    ) -> bool:
-        """Return False when no tests were found."""
-
-
 # --- Repository / upload ----------------------------------------------------
 
 
@@ -251,74 +228,6 @@ class UploaderPort(Protocol):
     ) -> None: ...
 
 
-# --- Platform strategies ----------------------------------------------------
-
-
-class PlatformPort(Protocol):
-    """
-    Platform-specific operations.
-
-    Implementations live in infrastructure. The application layer only
-    depends on this abstraction and never checks the operating system itself.
-    """
-
-    @property
-    def name(self) -> str: ...
-
-    # Freeze ---------------------------------------------------------------
-
-    def freeze(
-        self,
-        app_name: str,
-        debug: bool,
-    ) -> FreezeResult: ...
-
-    # Code signing ---------------------------------------------------------
-
-    def supports_signing(self) -> bool: ...
-
-    def sign_app(self) -> Optional[str]:
-        """Sign the frozen application and return a human-readable detail."""
-
-    def has_codesigning_certificate(self) -> bool: ...
-
-    # Installer ------------------------------------------------------------
-
-    def create_installer(
-        self,
-        app_name: str,
-        installer_file: str,
-        user_level: bool,
-    ) -> InstallerResult: ...
-
-    def supports_signing_installer(self) -> bool: ...
-
-    def sign_installer(self) -> None: ...
-
-    # Repository -----------------------------------------------------------
-
-    def supports_repo(self) -> bool: ...
-
-    def create_repo(
-        self,
-        app_name: str,
-        gpg_key: str,
-    ) -> RepoResult: ...
-
-    # Upload ---------------------------------------------------------------
-
-    def upload_instructions(
-        self,
-        app_name: str,
-        base_url: str,
-        installer_url: str,
-        repo_url: str,
-        gpg_key: str,
-    ) -> UploadResult: ...
-
-    # General instructions -------------------------------------------------
-
-    def get_instructions(self) -> str: ...
 
 class ProgressPort(Protocol):
     def start(

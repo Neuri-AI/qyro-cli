@@ -5,6 +5,7 @@ Implementation of the `qyro clean` command.
 
 import argparse
 from qyro.cmdline.registry import command
+from qyro.container import get_container
 
 
 @command(
@@ -16,17 +17,16 @@ class CleanCommand:
 
     @staticmethod
     def configure(parser: argparse.ArgumentParser) -> None:
-        pass
+        parser.add_argument(
+            "--release",
+            dest="include_release",
+            action="store_true",
+            help="Also remove release/ artifacts created by qyro bundle.",
+        )
 
     @staticmethod
     def execute(args: argparse.Namespace) -> int:
-        """
-        Execute the clean command.
-
-        Application-layer integration will be connected here once
-        the corresponding use case is available.
-        """
-
-        print("Clean command selected.")
-
+        get_container().clean_project_use_case.execute(
+            include_release=getattr(args, "include_release", False)
+        )
         return 0

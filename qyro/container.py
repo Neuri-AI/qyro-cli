@@ -29,6 +29,7 @@ from qyro.adapters.freeze.optimizer import BinaryOptimizer
 from qyro.adapters.freeze.pyinstaller_adapter import PyInstallerFreezer
 from qyro.application.use_cases.freeze import FreezeDesktopUseCase
 from qyro.application.use_cases.bundle import BundleReleaseUseCase
+from qyro.application.use_cases.clean import CleanProjectUseCase
 from qyro.application.use_cases.init import InitProjectUseCase
 from qyro.application.use_cases.version import ShowVersionUseCase
 from qyro.application.use_cases.start import RunApplicationUseCase
@@ -122,6 +123,13 @@ class Container:
             settings=self.settings,
             guards=self.guards,
             ui=self.ui,
+        )
+
+        self.clean_project_use_case = CleanProjectUseCase(
+            ui=self.ui,
+            fs=self.fs,
+            settings=self.settings,
+            guards=self.guards,
         )
 
 

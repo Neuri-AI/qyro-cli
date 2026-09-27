@@ -19,7 +19,12 @@ from qyro.domain.project import (
     ProjectConfig,
     TargetPlatform,
 )
-from qyro.domain.build import FreezeManifest, BuildArtifact, OptimizationConfig
+from qyro.domain.build import (
+    FreezeManifest,
+    BuildArtifact,
+    BundleArtifact,
+    OptimizationConfig,
+)
 
 
 # --- Presentation -----------------------------------------------------------
@@ -280,6 +285,38 @@ class BinaryOptimizerPort(Protocol):
         artifact: BuildArtifact,
         config: OptimizationConfig,
     ) -> None: ...
+
+
+class BundlePort(Protocol):
+    """Packages frozen artifacts into a distributable release directory."""
+
+    def preflight(
+        self,
+        *,
+        project_root: Path,
+        app_name: str,
+        freeze_dir: str,
+        package_format: str,
+        target_platform: str,
+        extra_files: list[object],
+        dmg_options: dict[str, object],
+    ) -> None: ...
+
+    def bundle(
+        self,
+        *,
+        project_root: Path,
+        app_name: str,
+        freeze_dir: str,
+        release_dir: str,
+        include_resources: bool,
+        create_archive: bool,
+        package_format: str,
+        target_platform: str,
+        app_version: str,
+        extra_files: list[object],
+        dmg_options: dict[str, object],
+    ) -> BundleArtifact: ...
 
 
 class MobileBuildPort(Protocol):

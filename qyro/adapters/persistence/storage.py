@@ -16,6 +16,7 @@ from qyro.domain.errors import MissingSettingError
 from qyro.domain.project import ComponentSpec
 
 BASE_SETTINGS = "settings/base.json"
+LEGACY_BASE_SETTINGS = "build/settings/base.json"
 TEXT_EXTENSIONS = {
     ".cfg",
     ".ini",
@@ -136,19 +137,48 @@ class SettingsRepository:
 
     def __init__(self, project_root: Path = None):
         self._root = project_root or Path.cwd()
+        self._base_settings_path = self._detect_base_settings_path()
         self._settings = self._load_base()
 
     @property
     def base_settings_path(self) -> str:
-        return str(self._root / BASE_SETTINGS)
+        return str(self._base_settings_path)
+
+    def _detect_base_settings_path(self) -> Path:
+        settings_base = self._root / BASE_SETTINGS
+        legacy_base = self._root / LEGACY_BASE_SETTINGS
+
+        if settings_base.exists():
+            return settings_base
+        if legacy_base.exists():
+            return legacy_base
+        return settings_base
+
+    def _settings_dirs(self) -> list[Path]:
+        # Load legacy first; modern settings/ can override when both exist.
+        dirs = [
+            self._root / "build" / "settings",
+            self._root / "settings",
+        ]
+        return [d for d in dirs if d.exists() and d.is_dir()]
 
     def _load_base(self) -> dict:
-        path = self._root / BASE_SETTINGS
+        merged: dict[str, Any] = {}
 
-        if not path.exists():
-            return {}
+        for base_path in [
+            self._root / LEGACY_BASE_SETTINGS,
+            self._root / BASE_SETTINGS,
+        ]:
+            if not base_path.exists():
+                continue
+            try:
+                data = json.loads(base_path.read_text(encoding="utf-8"))
+                if isinstance(data, dict):
+                    self._deep_merge(merged, data)
+            except Exception:
+                continue
 
-        return json.loads(path.read_text(encoding="utf-8"))
+        return merged
 
     def get(self, key: str):
         try:
@@ -163,39 +193,53 @@ class SettingsRepository:
         self._settings[key] = value
 
     def persist_base(self, values: dict[str, object]) -> None:
-        path = self._root / BASE_SETTINGS
+        path = self._base_settings_path
         path.parent.mkdir(parents=True, exist_ok=True)
         self._settings.update(values)
         path.write_text(json.dumps(self._settings, indent=4), encoding="utf-8")
 
     def activate_profile(self, profile: str) -> None:
-        """Load platform / profile specific JSON from settings/."""
-        candidates = [
-            self._root / "settings" / f"{profile}.json",
-            self._root / "settings" / f"{profile.lower()}.json",
-        ]
+        """Load platform / profile specific JSON from settings directories."""
+        candidates: list[Path] = []
+        for settings_dir in self._settings_dirs():
+            candidates.extend([
+                settings_dir / f"{profile}.json",
+                settings_dir / f"{profile.lower()}.json",
+            ])
+
         p_lower = profile.lower()
         if p_lower in ("windows", "win32", "win"):
-            candidates = [
-                self._root / "settings" / "windows.json",
-                self._root / "settings" / "release.json",
-            ] + candidates
+            prefix: list[Path] = []
+            for settings_dir in self._settings_dirs():
+                prefix.extend([
+                    settings_dir / "windows.json",
+                    settings_dir / "release.json",
+                ])
+            candidates = prefix + candidates
         elif p_lower in ("linux", "linux2", "gnu"):
-            candidates = [
-                self._root / "settings" / "linux.json",
-            ] + candidates
+            prefix = []
+            for settings_dir in self._settings_dirs():
+                prefix.append(settings_dir / "linux.json")
+            candidates = prefix + candidates
         elif p_lower in ("mac", "macos", "darwin", "osx"):
-            candidates = [
-                self._root / "settings" / "macos.json",
-                self._root / "settings" / "mac.json",
-            ] + candidates
+            prefix = []
+            for settings_dir in self._settings_dirs():
+                prefix.extend([
+                    settings_dir / "macos.json",
+                    settings_dir / "mac.json",
+                ])
+            candidates = prefix + candidates
 
+        seen: set[Path] = set()
         for candidate in candidates:
+            if candidate in seen:
+                continue
+            seen.add(candidate)
             if candidate.exists():
                 try:
                     data = json.loads(candidate.read_text(encoding="utf-8"))
-                    self._deep_merge(self._settings, data)
-                    return
+                    if isinstance(data, dict):
+                        self._deep_merge(self._settings, data)
                 except Exception:
                     pass
 

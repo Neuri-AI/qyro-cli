@@ -174,3 +174,12 @@ class BuildArtifact:
     uac_applied: bool
     debug_mode: bool
     binding: str
+
+
+@dataclass(frozen=True)
+class BundleArtifact:
+    output_dir: Path
+    included_paths: List[Path] = field(default_factory=list)
+    archive_path: Optional[Path] = None
+    package_path: Optional[Path] = None
+    package_format: Optional[str] = None

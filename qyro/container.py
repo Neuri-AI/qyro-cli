@@ -7,6 +7,7 @@ All dependencies between Use Cases, Ports, and Adapters are instantiated here.
 from pathlib import Path
 from qyro.adapters.cli.console_ui import RichConsoleUI
 from qyro.adapters.cli.progress import RichProgress
+from qyro.adapters.package.release_bundler import ReleaseBundler
 from qyro.adapters.package.metadata import PackageMetadata
 from qyro.adapters.persistence.storage import (
     OsFileSystem,
@@ -27,6 +28,7 @@ from qyro.adapters.freeze.framework_hooks import FrameworkHookResolver
 from qyro.adapters.freeze.optimizer import BinaryOptimizer
 from qyro.adapters.freeze.pyinstaller_adapter import PyInstallerFreezer
 from qyro.application.use_cases.freeze import FreezeDesktopUseCase
+from qyro.application.use_cases.bundle import BundleReleaseUseCase
 from qyro.application.use_cases.init import InitProjectUseCase
 from qyro.application.use_cases.version import ShowVersionUseCase
 from qyro.application.use_cases.start import RunApplicationUseCase
@@ -77,6 +79,7 @@ class Container:
 
         self.hook_resolver = FrameworkHookResolver()
         self.optimizer = BinaryOptimizer(ui=self.ui)
+        self.bundler = ReleaseBundler()
         self.freezer = PyInstallerFreezer(
             resolver=self.hook_resolver,
             ui=self.ui,
@@ -111,6 +114,13 @@ class Container:
             freezer=self.freezer,
             settings_repo=self.settings,
             optimizer=self.optimizer,
+            ui=self.ui,
+        )
+
+        self.bundle_release_use_case = BundleReleaseUseCase(
+            bundler=self.bundler,
+            settings=self.settings,
+            guards=self.guards,
             ui=self.ui,
         )
 

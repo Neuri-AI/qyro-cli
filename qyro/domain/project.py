@@ -195,7 +195,7 @@ class ProjectConfig:
         if self.binding == Binding.PYQT5:
             return ">=3.8,<3.13"
 
-        return ">=3.11,<3.15"
+        return ">=3.10,<3.15"
 
     @property
     def to_pascal_case(self) -> str:

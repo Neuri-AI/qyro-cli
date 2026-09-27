@@ -121,7 +121,7 @@ class FrameworkHookResolver(FrameworkHookResolverPort):
         manifest: FreezeManifest,
     ) -> List[str]:
         args = self._resolve_qt("PySide2")
-        args.extend(["--collect-all", "PySide2"])
+        args.extend(["--collect-all", "PySide2", "--collect-all", "shiboken2"])
         return args
 
     def _resolve_kivy(
@@ -131,12 +131,21 @@ class FrameworkHookResolver(FrameworkHookResolverPort):
     ) -> List[str]:
         args = [
             "--hidden-import", "kivy",
+            "--hidden-import", "kivy.app",
+            "--hidden-import", "kivy.uix",
+            "--hidden-import", "kivy.factory",
+            "--hidden-import", "kivy.lang",
+            "--hidden-import", "kivy.lang.builder",
+            "--hidden-import", "kivy.core.window",
             "--hidden-import", "kivy.core.window.window_sdl2",
+            "--hidden-import", "kivy.core.text",
             "--hidden-import", "kivy.core.text.text_sdl2",
+            "--hidden-import", "kivy.core.image",
             "--hidden-import", "kivy.core.image.img_sdl2",
             "--hidden-import", "kivy.core.clipboard.clipboard_sdl2",
+            "--hidden-import", "kivy.graphics",
+            "--hidden-import", "kivy.graphics.cgl",
             "--hidden-import", "kivy.graphics.cgl_backend.cgl_glew",
-            "--collect-submodules", "kivy",
             "--collect-data", "kivy",
         ]
 
@@ -168,6 +177,11 @@ class FrameworkHookResolver(FrameworkHookResolverPort):
         for item in sorted(collected_kv):
             args.extend(["--add-data", item])
 
+        # Attach Qyro's bundled Kivy runtime hook to set custom window icon
+        kivy_rthook = Path(__file__).parent / "hooks" / "rthook_kivy_icon.py"
+        if kivy_rthook.exists():
+            args.extend(["--runtime-hook", kivy_rthook.as_posix()])
+
         return args
 
     def _resolve_tkinter(
@@ -175,13 +189,33 @@ class FrameworkHookResolver(FrameworkHookResolverPort):
         project_root: Path,
         manifest: FreezeManifest,
     ) -> List[str]:
-        return [
+        args = [
+            "--hidden-import", "_tkinter",
             "--hidden-import", "tkinter",
             "--hidden-import", "tkinter.ttk",
             "--hidden-import", "tkinter.messagebox",
             "--hidden-import", "tkinter.filedialog",
             "--collect-data", "tkinter",
         ]
+
+        import sys
+        sep = self._data_separator(manifest)
+        py_prefix = Path(sys.prefix)
+
+        tcl_tk_candidates = [
+            (py_prefix / "lib" / "tcl8.6", "tcl8.6"),
+            (py_prefix / "lib" / "tk8.6", "tk8.6"),
+            (py_prefix / "lib" / "tcl8.5", "tcl8.5"),
+            (py_prefix / "lib" / "tk8.5", "tk8.5"),
+            (py_prefix / "tcl", "tcl"),
+            (py_prefix / "tk", "tk"),
+        ]
+
+        for src_path, target_name in tcl_tk_candidates:
+            if src_path.is_dir():
+                args.extend(["--add-data", f"{src_path.as_posix()}{sep}{target_name}"])
+
+        return args
 
     def _resolve_addons(
         self,
@@ -202,14 +236,15 @@ class FrameworkHookResolver(FrameworkHookResolverPort):
         if "kivymd" in addons:
             args.extend([
                 "--hidden-import", "kivymd",
-                "--collect-submodules", "kivymd",
+                "--hidden-import", "kivymd.app",
+                "--hidden-import", "kivymd.uix",
                 "--collect-data", "kivymd",
             ])
 
         if "plyer" in addons:
             args.extend([
                 "--hidden-import", "plyer",
-                "--collect-submodules", "plyer",
+                "--hidden-import", "plyer.platforms",
             ])
 
         return args

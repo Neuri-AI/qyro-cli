@@ -309,7 +309,6 @@ class PyInstallerFreezer(FreezerPort):
             if app_bundle.exists():
                 self._remove_unwanted_pyinstaller_files(app_bundle)
                 self._copy_mac_resources(project_root, app_bundle)
-                self._purge_excluded_binaries(app_bundle, manifest)
 
         # Calculate output executable path and size
         if manifest.bundle_mode == BundleMode.ONEFILE:
@@ -326,6 +325,16 @@ class PyInstallerFreezer(FreezerPort):
                 out_exe = out_folder / "Contents" / "MacOS" / manifest.app_name
             self._purge_excluded_binaries(out_folder, manifest)
             size = self._calc_dir_size(out_folder)
+
+        # If binding is Kivy, replace default Kivy logo files in output with user's custom icon
+        if str(manifest.binding).lower() == "kivy":
+            self._override_kivy_icons_in_output(out_folder, project_root)
+
+        # Sign macOS app bundle as the final step after all file modifications are complete
+        if is_mac_target:
+            app_bundle = dist_dir / f"{manifest.app_name}.app"
+            if app_bundle.exists():
+                self._codesign_mac_bundle(app_bundle)
 
         return BuildArtifact(
             output_dir=out_folder,
@@ -531,6 +540,90 @@ class PyInstallerFreezer(FreezerPort):
                     else:
                         shutil.copy2(item, dest)
 
+    def _override_kivy_icons_in_output(self, output_dir: Path, project_root: Path) -> None:
+        """Overwrites Kivy default logo files inside dist output directory with user's custom icon."""
+        if not output_dir.exists():
+            return
+
+        target_plat = "mac" if sys.platform == "darwin" else ("windows" if sys.platform == "win32" else "linux")
+
+        icon_candidates = [
+            # Platform specific (mac/linux/windows)
+            project_root / "resources" / target_plat / "icons" / "1024.png",
+            project_root / "resources" / target_plat / "icons" / "512.png",
+            project_root / "resources" / target_plat / "icons" / "256.png",
+            project_root / "resources" / target_plat / "icons" / "128.png",
+            project_root / "resources" / target_plat / "icons" / "64.png",
+            project_root / "resources" / target_plat / "icons" / "32.png",
+            project_root / "resources" / target_plat / "icon.png",
+            # Base fallback
+            project_root / "resources" / "base" / "icons" / "256.png",
+            project_root / "resources" / "base" / "icons" / "128.png",
+            project_root / "resources" / "base" / "icons" / "64.png",
+            project_root / "resources" / "base" / "icons" / "32.png",
+            project_root / "resources" / "base" / "icons" / "24.png",
+            project_root / "resources" / "base" / "icons" / "16.png",
+            project_root / "resources" / "base" / "icon.png",
+            # Flat resources folder
+            project_root / "resources" / "icons" / "512.png",
+            project_root / "resources" / "icons" / "256.png",
+            project_root / "resources" / "icons" / "128.png",
+            project_root / "resources" / "icons" / "64.png",
+            project_root / "resources" / "icons" / "32.png",
+            project_root / "resources" / "icons" / "icon.png",
+            project_root / "resources" / "icon.png",
+            project_root / "icon.png",
+        ]
+
+        user_icon = next((c for c in icon_candidates if c.is_file()), None)
+        if not user_icon:
+            return
+
+        for logo_dir in output_dir.rglob("logo"):
+            if logo_dir.is_dir() and ("kivy" in str(logo_dir).lower()):
+                for logo_file in logo_dir.glob("kivy-icon-*"):
+                    try:
+                        shutil.copy2(user_icon, logo_file)
+                    except Exception:
+                        pass
+
+    def _codesign_mac_bundle(self, app_bundle: Path) -> None:
+        """Applies ad-hoc code signing to the macOS .app bundle using codesign after setting permissions and clearing quarantine."""
+        if not app_bundle.exists() or sys.platform != "darwin":
+            return
+        try:
+            # 1. Delete stale _CodeSignature directory before re-signing modified bundle
+            code_sig_dir = app_bundle / "Contents" / "_CodeSignature"
+            if code_sig_dir.exists():
+                shutil.rmtree(code_sig_dir, ignore_errors=True)
+
+            # 2. Ensure executable permissions on binaries in Contents/MacOS and shared libraries
+            for item in app_bundle.rglob("*"):
+                if item.is_file() and not item.is_symlink():
+                    if "Contents/MacOS/" in str(item) or item.suffix in (".dylib", ".so"):
+                        try:
+                            os.chmod(item, 0o755)
+                        except Exception:
+                            pass
+
+            # 3. Clear all extended attributes (quarantine, provenance, etc.)
+            subprocess.run(
+                ["xattr", "-cr", str(app_bundle)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+
+            # 4. Ad-hoc code sign bundle cleanly
+            subprocess.run(
+                ["codesign", "--force", "--deep", "--timestamp=none", "-s", "-", str(app_bundle)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+        except Exception:
+            pass
+
     def _purge_excluded_binaries(self, output_dir: Path, manifest: FreezeManifest) -> None:
         """Purges C++ frameworks, shared objects (.so), DLLs, dylibs, and binary plugins for modules listed in exclude_modules and exclude_binaries."""
         if not output_dir.exists():
@@ -607,18 +700,23 @@ class PyInstallerFreezer(FreezerPort):
 
         # Walk bottom-up to safely delete files and subdirectories
         PROTECTED_CORE = (
+            manifest.app_name.lower(),
             "qtcore", "qtgui", "qtwidgets", "shiboken", "qwindows",
             "python3", "vcruntime", "base_library", "pyiboot01"
         )
 
         for root, dirs, files in os.walk(str(output_dir), topdown=False):
+            # Never purge anything directly inside Contents/MacOS
+            if "contents/macos" in root.lower():
+                continue
+
             # Check files and symlinks
             for f in files:
                 file_p = Path(root) / f
                 f_lower = f.lower()
 
-                # Core runtime files are strictly protected from exclusion purging
-                if any(prot in f_lower for prot in PROTECTED_CORE):
+                # Core runtime files and main application executable are strictly protected
+                if f_lower == manifest.app_name.lower() or any(prot in f_lower for prot in PROTECTED_CORE):
                     continue
 
                 should_delete = False
@@ -723,9 +821,13 @@ class PyInstallerFreezer(FreezerPort):
                 if dist_info.exists() and dist_info.is_dir():
                     shutil.rmtree(dist_info, ignore_errors=True)
 
-        # Cleanup Pass: Purge any broken symlinks remaining anywhere in output_dir
+        # Cleanup Pass: Purge any broken symlinks remaining anywhere in output_dir (except Contents/MacOS and main binary)
         for root, dirs, files in os.walk(str(output_dir), topdown=False):
+            if "contents/macos" in root.lower():
+                continue
             for name in files + dirs:
+                if name.lower() == manifest.app_name.lower():
+                    continue
                 p = Path(root) / name
                 if p.is_symlink() and not p.exists():
                     try:

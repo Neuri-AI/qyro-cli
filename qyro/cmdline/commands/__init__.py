@@ -5,9 +5,7 @@ Built-in Qyro CLI commands.
 Importing this module registers all built-in commands.
 """
 
-#from . import build
 from . import clean
-from . import create
 from . import init
 from . import start
 from . import version
@@ -17,7 +15,6 @@ from . import sign
 
 __all__ = [
     "clean",
-    "create",
     "init",
     "start",
     "version",

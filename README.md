@@ -4,6 +4,10 @@
 
 # ⚡ Qyro CLI
 
+> [!WARNING]
+> **Mobile support is a work in progress.** Every mobile-related feature described in this document (Buildozer packaging, the `[mobile]` extra, Android/iOS targets, Kivy on mobile) is **not finished yet**. For now, Qyro CLI **only works for desktop** (Windows, macOS and Linux).
+> 
+
 > **The official developer CLI and project orchestrator for the [Qyro](https://github.com/Neuri-AI/qyro) desktop and mobile application ecosystem.**
 
 [![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14%20%7C%203.15-blue.svg)](https://python.org)
@@ -53,7 +57,8 @@ poetry add qyro-cli -E desktop
 ```
 
 ### Mobile Packaging Support (Buildozer)
-
+> [!WARNING]
+> **Mobile packaging is not ready yet.** The `[mobile]` extra and Buildozer integration are under active development and may be incomplete or change without notice. Please use the desktop workflow for now.
 ```bash
 # Using pip
 pip install "qyro-cli[mobile]"
@@ -96,6 +101,9 @@ Supported `--binding` values:
 - `PySide2`
 - `Kivy`
 - `Tkinter`
+  
+> [!NOTE]
+> **Kivy** projects currently work on desktop only. Mobile builds (Android/iOS) are not supported yet.
 
 ### 2) Run from source
 
@@ -125,6 +133,8 @@ qyro build --target linux
 # extra controls
 qyro build --debug --console --uac --clean --interactive
 ```
+> [!NOTE]
+> Available `--target` values are desktop platforms only (`mac`, `windows`, `linux`). Mobile targets are not available yet.
 
 ### 4) Bundle for distribution
 
@@ -437,7 +447,8 @@ npm install -g create-dmg
 | **PySide2** | `PySide2Adapter` | Official Qt 5 environments. |
 | **Kivy** | `KivyAdapter` | Cross-platform touch interfaces for desktop/mobile. |
 | **Tkinter** | `TkinterAdapter` | Zero-dependency desktop utilities built on stdlib. |
-
+> [!WARNING]
+> Mobile deployment of **Kivy** apps is still in progress. All adapters are supported on **desktop only** for now.
 ---
 
 ## 🔌 Built-in Add-ons

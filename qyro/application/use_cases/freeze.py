@@ -316,6 +316,9 @@ class FreezeDesktopUseCase:
         if isinstance(settings_extra, list):
             extra_args.extend(settings_extra)
 
+        if target_platform in ("mac", "macos", "darwin", "osx"):
+            self._append_macos_signing_args(extra_args)
+
         paths = list(build_data.get("paths", []))
         settings_paths = self._settings.get_optional("paths", [])
         if isinstance(settings_paths, list):
@@ -344,6 +347,42 @@ class FreezeDesktopUseCase:
             paths=paths,
             collect_all=collect_all,
         )
+
+    def _append_macos_signing_args(self, extra_args: list[str]) -> None:
+        sign_settings = self._settings.get_optional("sign", {})
+        if not isinstance(sign_settings, dict):
+            sign_settings = {}
+
+        mac_sign_settings = sign_settings.get("mac", {})
+        if not isinstance(mac_sign_settings, dict):
+            mac_sign_settings = {}
+
+        identity = str(
+            mac_sign_settings.get("identity")
+            or self._settings.get_optional("mac_sign_identity", "")
+        ).strip()
+
+        entitlements = str(
+            mac_sign_settings.get("entitlements")
+            or self._settings.get_optional("mac_sign_entitlements", "")
+        ).strip()
+
+        target_arch = str(
+            mac_sign_settings.get("target_architecture")
+            or self._settings.get_optional("mac_target_architecture", "")
+        ).strip()
+
+        def has_arg(flag: str) -> bool:
+            return any(arg == flag or arg.startswith(flag + "=") for arg in extra_args)
+
+        if identity and not has_arg("--codesign-identity"):
+            extra_args.extend(["--codesign-identity", identity])
+
+        if entitlements and not has_arg("--osx-entitlements-file"):
+            extra_args.extend(["--osx-entitlements-file", entitlements])
+
+        if target_arch and not has_arg("--target-arch") and not has_arg("--target-architecture"):
+            extra_args.extend(["--target-arch", target_arch])
 
     def _show_interactive_review(self, manifest: FreezeManifest) -> None:
         fields = {

@@ -183,3 +183,12 @@ class BundleArtifact:
     archive_path: Optional[Path] = None
     package_path: Optional[Path] = None
     package_format: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class SigningArtifact:
+    platform: str
+    signed_paths: List[Path] = field(default_factory=list)
+    notarized: bool = False
+    stapled: bool = False
+    gatekeeper_assessed: bool = False

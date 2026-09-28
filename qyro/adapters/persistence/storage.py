@@ -17,6 +17,8 @@ from qyro.domain.project import ComponentSpec
 
 BASE_SETTINGS = "settings/base.json"
 LEGACY_BASE_SETTINGS = "build/settings/base.json"
+SECRETS_SETTINGS = "settings/secrets.json"
+LEGACY_SECRETS_SETTINGS = "build/settings/secrets.json"
 TEXT_EXTENSIONS = {
     ".cfg",
     ".ini",
@@ -139,6 +141,7 @@ class SettingsRepository:
         self._root = project_root or Path.cwd()
         self._base_settings_path = self._detect_base_settings_path()
         self._settings = self._load_base()
+        self._apply_secrets_overrides()
 
     @property
     def base_settings_path(self) -> str:
@@ -179,6 +182,32 @@ class SettingsRepository:
                 continue
 
         return merged
+
+    def _load_json_dict(self, path: Path) -> dict[str, Any] | None:
+        if not path.exists():
+            return None
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                return data
+        except Exception:
+            return None
+        return None
+
+    def _apply_secrets_overrides(self) -> None:
+        """
+        Apply local-only secret settings with highest precedence.
+
+        This file is meant for build/signing secrets and should never be
+        committed to source control.
+        """
+        for secrets_path in [
+            self._root / LEGACY_SECRETS_SETTINGS,
+            self._root / SECRETS_SETTINGS,
+        ]:
+            data = self._load_json_dict(secrets_path)
+            if data:
+                self._deep_merge(self._settings, data)
 
     def get(self, key: str):
         try:
@@ -242,6 +271,9 @@ class SettingsRepository:
                         self._deep_merge(self._settings, data)
                 except Exception:
                     pass
+
+        # Re-apply local secret overrides to keep them highest precedence.
+        self._apply_secrets_overrides()
 
     def _deep_merge(self, base: dict, update: dict) -> None:
         for k, v in update.items():

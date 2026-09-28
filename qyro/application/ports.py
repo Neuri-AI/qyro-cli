@@ -23,6 +23,7 @@ from qyro.domain.build import (
     FreezeManifest,
     BuildArtifact,
     BundleArtifact,
+    SigningArtifact,
     OptimizationConfig,
 )
 
@@ -317,6 +318,30 @@ class BundlePort(Protocol):
         extra_files: list[object],
         dmg_options: dict[str, object],
     ) -> BundleArtifact: ...
+
+
+class ApplicationSignerPort(Protocol):
+    """Signs compiled application artifacts for distribution trust."""
+
+    def preflight(
+        self,
+        *,
+        project_root: Path,
+        app_name: str,
+        freeze_dir: str,
+        target_platform: str,
+        signing_options: dict[str, object],
+    ) -> None: ...
+
+    def sign(
+        self,
+        *,
+        project_root: Path,
+        app_name: str,
+        freeze_dir: str,
+        target_platform: str,
+        signing_options: dict[str, object],
+    ) -> SigningArtifact: ...
 
 
 class MobileBuildPort(Protocol):

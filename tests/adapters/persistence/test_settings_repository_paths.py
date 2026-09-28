@@ -42,3 +42,42 @@ def test_activate_profile_reads_release_from_build_settings(tmp_path):
     bundle = repo.get_optional("bundle", {})
     assert bundle.get("extra_files") == ["README.md"]
     assert bundle.get("dmg", {}).get("icon_size") == 120
+
+
+def test_secrets_override_base_settings(tmp_path):
+    settings_dir = tmp_path / "settings"
+    settings_dir.mkdir(parents=True)
+    (settings_dir / "base.json").write_text(
+        json.dumps({"sign": {"windows": {"password": "from-base"}}}),
+        encoding="utf-8",
+    )
+    (settings_dir / "secrets.json").write_text(
+        json.dumps({"sign": {"windows": {"password": "from-secrets"}}}),
+        encoding="utf-8",
+    )
+
+    repo = SettingsRepository(project_root=tmp_path)
+
+    assert repo.get_optional("sign", {}).get("windows", {}).get("password") == "from-secrets"
+
+
+def test_secrets_remain_highest_precedence_after_profile_activation(tmp_path):
+    settings_dir = tmp_path / "settings"
+    settings_dir.mkdir(parents=True)
+    (settings_dir / "base.json").write_text(
+        json.dumps({"sign": {"windows": {"password": "from-base"}}}),
+        encoding="utf-8",
+    )
+    (settings_dir / "release.json").write_text(
+        json.dumps({"sign": {"windows": {"password": "from-release"}}}),
+        encoding="utf-8",
+    )
+    (settings_dir / "secrets.json").write_text(
+        json.dumps({"sign": {"windows": {"password": "from-secrets"}}}),
+        encoding="utf-8",
+    )
+
+    repo = SettingsRepository(project_root=tmp_path)
+    repo.activate_profile("release")
+
+    assert repo.get_optional("sign", {}).get("windows", {}).get("password") == "from-secrets"

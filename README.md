@@ -7,11 +7,11 @@
 > **The official developer CLI and project orchestrator for the [Qyro](https://github.com/Neuri-AI/qyro) desktop and mobile application ecosystem.**
 
 [![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14%20%7C%203.15-blue.svg)](https://python.org)
-![GitHub Release](https://img.shields.io/github/v/release/runesc/qyro-engine?include_prereleases&display_name=release&color=stable)
-![GitHub Issues](https://img.shields.io/github/issues/runesc/qyro-engine?color=%23ab7df8)
-![GitHub Issues Closed](https://img.shields.io/github/issues-closed/runesc/qyro-engine?color=green)
-![GitHub forks](https://img.shields.io/github/forks/runesc/qyro-engine)
-![GitHub stars](https://img.shields.io/github/stars/runesc/qyro-engine)
+![GitHub Release](https://img.shields.io/github/v/release/runesc/qyro?include_prereleases&display_name=release&color=stable)
+![GitHub Issues](https://img.shields.io/github/issues/runesc/qyro?color=%23ab7df8)
+![GitHub Issues Closed](https://img.shields.io/github/issues-closed/runesc/qyro?color=green)
+![GitHub forks](https://img.shields.io/github/forks/runesc/qyro)
+![GitHub stars](https://img.shields.io/github/stars/runesc/qyro)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 ---
@@ -22,6 +22,7 @@
 - **🔄 Smart Template Resolution:** Uses template providers with fallback support for robust initialization workflows.
 - **❄️ Packaging & Freezing Ready:** Native freezing for desktop targets with PyInstaller.
 - **📦 Distribution Bundling:** Platform-aware bundling for DMG, NSIS, and Linux package formats.
+- **🔐 Code Signing & Notarization:** Windows Authenticode and macOS signing with optional notarization/stapling.
 - **✅ Release Preflight Checks:** Validate dependencies and `release.json` paths/options before packaging.
 - **🧹 Artifact Cleanup:** Clean build outputs and optional release outputs with one command.
 
@@ -159,6 +160,180 @@ qyro clean
 qyro clean --release
 ```
 
+### 7) Sign compiled artifacts
+
+```bash
+# preflight validation only
+qyro sign --check --platform windows
+qyro sign --check --platform mac
+
+# sign frozen binaries/app bundle
+qyro sign --platform windows
+qyro sign --platform mac
+
+# macOS notarization flow (sign + notarize + staple)
+qyro sign --platform mac --notarize --staple --keychain-profile "QYRO-NOTARY"
+
+# skip Gatekeeper assessment if desired
+qyro sign --platform mac --notarize --staple --no-assess
+```
+
+### 8) Signing guide (Windows + macOS)
+
+Use `settings/release.json` (or `build/settings/release.json`) to configure signing.
+
+#### Windows signing (Authenticode)
+
+Requirements:
+
+- Windows host with `signtool` available in `PATH`.
+- A code-signing certificate file (for example `.pfx`) and its password.
+
+Example configuration:
+
+```json
+{
+  "sign": {
+    "windows": {
+      "certificate": "src/sign/windows/certificate.pfx",
+      "password": "<secret>",
+      "timestamp_server": "http://timestamp.digicert.com",
+      "description": "MyApp",
+      "url": "https://example.com"
+    }
+  }
+}
+```
+
+Security note:
+
+- Do not commit real passwords, tokens or private keys in `settings/release.json`.
+- Put sensitive values in `settings/secrets.json` instead (loaded locally at build/sign time).
+
+Recommended flow:
+
+```bash
+# 1) build artifacts
+qyro build --target windows
+
+# 2) validate signing prerequisites
+qyro sign --check --platform windows
+
+# 3) sign all signable binaries in build/
+qyro sign --platform windows
+```
+
+By default, Qyro signs supported binary types in the freeze output (for example `.exe`, `.dll`, `.msi`, `.cab`).
+
+#### macOS signing + notarization
+
+Requirements:
+
+- macOS host with Xcode Command Line Tools (`codesign`, `xcrun`, `notarytool`, `stapler`, `spctl`).
+- Apple Developer membership and a valid `Developer ID Application` certificate in Keychain.
+- Entitlements file for Python runtime behavior (recommended for GUI Python apps).
+
+Example `entitlements.plist`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+  </dict>
+</plist>
+```
+
+Example configuration:
+
+```json
+{
+  "sign": {
+    "mac": {
+      "identity": "Developer ID Application: Your Name (TEAMID)",
+      "entitlements": "src/sign/mac/entitlements.plist",
+      "target_architecture": "universal2",
+      "notary": {
+        "enabled": true,
+        "staple": true,
+        "assess_gatekeeper": true,
+        "keychain_profile": "QYRO-NOTARY"
+      }
+    }
+  }
+}
+```
+
+Security note:
+
+- Do not commit Apple credentials (`app_password`, API key paths, keychain profile names tied to private key workflows) in shared config files.
+- Use `settings/secrets.json` for local secret overrides.
+
+Recommended flow:
+
+```bash
+# 1) build mac app bundle
+qyro build --target mac
+
+# 2) validate signing/notary prerequisites
+qyro sign --check --platform mac
+
+# 3) sign only
+qyro sign --platform mac
+
+# 4) sign + notarize + staple
+qyro sign --platform mac --notarize --staple --keychain-profile "QYRO-NOTARY"
+```
+
+Authentication options for `sign.mac.notary`:
+
+- `keychain_profile`
+- `key_path` + `key_id` (+ `issuer` for Team keys)
+- `apple_id` + `team_id` + `app_password`
+
+When `sign.mac.identity` and `sign.mac.entitlements` are configured, Qyro also forwards them to PyInstaller (`--codesign-identity` and `--osx-entitlements-file`) during `qyro build` on macOS so collected binaries are signed during packaging.
+
+### 9) Secret management (`settings/secrets.json`)
+
+Qyro supports a local-only secrets file:
+
+- `settings/secrets.json` (preferred)
+- `build/settings/secrets.json` (legacy compatibility)
+
+How it works:
+
+- Qyro loads base/profile settings first, then applies `secrets.json` as highest-precedence overrides.
+- This means values in `secrets.json` replace values from `base.json`, `release.json`, `windows.json`, `mac.json`, etc.
+
+Repository safety:
+
+- `settings/secrets.json` must never be committed.
+- The repository `.gitignore` includes this path by default.
+
+Example:
+
+```json
+{
+  "sign": {
+    "windows": {
+      "password": "<local-secret>"
+    },
+    "mac": {
+      "notary": {
+        "keychain_profile": "QYRO-NOTARY-LOCAL",
+        "app_password": "<local-secret>"
+      }
+    }
+  }
+}
+```
+
 ---
 
 ## 🎛️ CLI Commands Reference
@@ -167,9 +342,9 @@ qyro clean --release
 | :--- | :--- | :--- |
 | `qyro init` | `-n, --name` `-b, --binding` `--template-version` | Initialize a new project. |
 | `qyro start` | none | Run the app from source. |
-| `qyro create` | `component\|view <name>` `[--inherit <base>]` | Scaffold command entrypoint (currently minimal/placeholder implementation). |
 | `qyro build` | `-m, --mode onedir|onefile` `--onefile` `--debug` `--console` `--uac` `-p, --profile` `-c, --clean` `-i, --interactive` `--target` `--init-spec` | Freeze/build artifacts. |
 | `qyro bundle` | `--release-dir` `--no-resources` `--zip` `--platform` `--format` `--check` | Create distributable packages or run preflight checks. |
+| `qyro sign` | `--platform windows|mac|auto` `--check` `--notarize` `--staple` `--no-assess` `--keychain-profile` | Sign compiled artifacts and optionally notarize/staple macOS `.app`. |
 | `qyro clean` | `--release` | Remove generated build artifacts. |
 | `qyro version` | none | Show current version info. |
 

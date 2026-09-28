@@ -13,6 +13,7 @@ from . import start
 from . import version
 from . import build
 from . import bundle
+from . import sign
 
 __all__ = [
     "clean",
@@ -22,4 +23,5 @@ __all__ = [
     "version",
     "build",
     "bundle",
+    "sign",
 ]

@@ -142,7 +142,7 @@ qyro bundle --platform linux --format arch
 qyro bundle --zip --release-dir release
 ```
 
-### 5) Validate before packaging (preflight)
+### Validate before packaging (preflight)
 
 ```bash
 qyro bundle --check
@@ -150,7 +150,7 @@ qyro bundle --check
 
 This validates dependencies and `release` settings (like DMG background and extra files) without generating artifacts.
 
-### 6) Clean outputs
+### Clean outputs
 
 ```bash
 # clean freeze directory (default: build/)
@@ -160,7 +160,7 @@ qyro clean
 qyro clean --release
 ```
 
-### 7) Sign compiled artifacts
+### Sign compiled artifacts
 
 ```bash
 # preflight validation only
@@ -178,7 +178,7 @@ qyro sign --platform mac --notarize --staple --keychain-profile "QYRO-NOTARY"
 qyro sign --platform mac --notarize --staple --no-assess
 ```
 
-### 8) Signing guide (Windows + macOS)
+### Signing guide (Windows + macOS)
 
 Use `settings/release.json` (or `build/settings/release.json`) to configure signing.
 
@@ -299,7 +299,7 @@ Authentication options for `sign.mac.notary`:
 
 When `sign.mac.identity` and `sign.mac.entitlements` are configured, Qyro also forwards them to PyInstaller (`--codesign-identity` and `--osx-entitlements-file`) during `qyro build` on macOS so collected binaries are signed during packaging.
 
-### 9) Secret management (`settings/secrets.json`)
+### Secret management (`settings/secrets.json`)
 
 Qyro supports a local-only secrets file:
 

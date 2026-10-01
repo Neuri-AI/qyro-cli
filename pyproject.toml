@@ -5,7 +5,7 @@ version = "1.0.0a1"
 description = "The official developer CLI and project orchestrator for the Qyro ecosystem. Scaffold, develop, build, package, and sign cross-platform Python applications."
 authors = [{ name = "Neuri", email = "ppg@neuri.ai" }]
 maintainers = [
-    { name = "Luis Alfredo De Los Reyes", email = "alfredo@neuri.ai" },
+    { name = "Luis Alfredo De Los Reyes", email = "luisalfredoreyes98@gmail.com" },
 ]
 dynamic = ["classifiers"]
 keywords = [

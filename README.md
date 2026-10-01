@@ -12,7 +12,7 @@
 
 [![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14%20%7C%203.15-blue.svg)](https://python.org)
 ![GitHub Release](https://img.shields.io/github/v/release/runesc/qyro?include_prereleases&display_name=release&color=stable)
-![GitHub Issues](https://img.shields.io/github/issues/runesc/qyro?color=%23ab7df8)
+![GitHub Issues](https://img.shields.io/github/isxsues/runesc/qyro?color=%23ab7df8)
 ![GitHub Issues Closed](https://img.shields.io/github/issues-closed/runesc/qyro?color=green)
 ![GitHub forks](https://img.shields.io/github/forks/runesc/qyro)
 ![GitHub stars](https://img.shields.io/github/stars/runesc/qyro)

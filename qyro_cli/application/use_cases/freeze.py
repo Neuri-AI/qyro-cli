@@ -8,7 +8,9 @@ and bindings (PyQt5/6, PySide6/2, Kivy, Tkinter).
 
 import datetime
 import json
+import platform
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -317,7 +319,7 @@ class FreezeDesktopUseCase:
             extra_args.extend(settings_extra)
 
         if target_platform in ("mac", "macos", "darwin", "osx"):
-            self._append_macos_signing_args(extra_args)
+            self._append_macos_signing_args(extra_args, root)
 
         paths = list(build_data.get("paths", []))
         settings_paths = self._settings.get_optional("paths", [])
@@ -348,7 +350,7 @@ class FreezeDesktopUseCase:
             collect_all=collect_all,
         )
 
-    def _append_macos_signing_args(self, extra_args: list[str]) -> None:
+    def _append_macos_signing_args(self, extra_args: list[str], project_root: Path) -> None:
         sign_settings = self._settings.get_optional("sign", {})
         if not isinstance(sign_settings, dict):
             sign_settings = {}
@@ -376,13 +378,98 @@ class FreezeDesktopUseCase:
             return any(arg == flag or arg.startswith(flag + "=") for arg in extra_args)
 
         if identity and not has_arg("--codesign-identity"):
-            extra_args.extend(["--codesign-identity", identity])
+            if self._is_placeholder_identity(identity):
+                self._ui.warning(
+                    "macOS codesign identity looks like a template value. "
+                    "Continuing build without --codesign-identity."
+                )
+            elif self._is_available_codesign_identity(identity):
+                extra_args.extend(["--codesign-identity", identity])
+            else:
+                self._ui.warning(
+                    "macOS codesign identity was not found in the local keychain. "
+                    "Continuing build without --codesign-identity."
+                )
 
         if entitlements and not has_arg("--osx-entitlements-file"):
-            extra_args.extend(["--osx-entitlements-file", entitlements])
+            entitlements_path = Path(entitlements)
+            if not entitlements_path.is_absolute():
+                entitlements_path = (project_root / entitlements_path).resolve()
+
+            if entitlements_path.exists():
+                extra_args.extend(["--osx-entitlements-file", str(entitlements_path)])
+            else:
+                self._ui.warning(
+                    "macOS entitlements file not found. "
+                    "Continuing build without --osx-entitlements-file."
+                )
 
         if target_arch and not has_arg("--target-arch") and not has_arg("--target-architecture"):
-            extra_args.extend(["--target-arch", target_arch])
+            effective_arch = self._resolve_macos_target_arch(target_arch)
+            if effective_arch:
+                extra_args.extend(["--target-arch", effective_arch])
+
+    def _is_placeholder_identity(self, identity: str) -> bool:
+        normalized = identity.strip().lower()
+        if not normalized:
+            return True
+
+        placeholders = (
+            "your name",
+            "teamid",
+            "example",
+            "developer id application: your name (teamid)",
+        )
+        return any(token in normalized for token in placeholders)
+
+    def _is_available_codesign_identity(self, identity: str) -> bool:
+        try:
+            result = subprocess.run(
+                ["security", "find-identity", "-v", "-p", "codesigning"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except Exception:
+            return False
+
+        if result.returncode != 0:
+            return False
+
+        output = f"{result.stdout}\n{result.stderr}".lower()
+        return identity.strip().lower() in output
+
+    def _resolve_macos_target_arch(self, configured_arch: str) -> str:
+        normalized = configured_arch.strip().lower()
+        if not normalized:
+            return ""
+
+        # universal2 requires all collected binaries to be fat binaries.
+        # Most local environments are single-arch, so default to native arch
+        # for developer builds unless user explicitly overrides via extra args.
+        if normalized == "universal2":
+            machine = platform.machine().strip().lower()
+            if machine in ("arm64", "aarch64"):
+                native = "arm64"
+            elif machine in ("x86_64", "amd64", "x64"):
+                native = "x86_64"
+            else:
+                native = ""
+
+            if native:
+                self._ui.warning(
+                    "macOS target_architecture=universal2 requires universal/fat dependencies. "
+                    f"Using native architecture '{native}' for this build."
+                )
+                return native
+
+            self._ui.warning(
+                "Could not determine native macOS architecture. "
+                "Continuing build without --target-arch."
+            )
+            return ""
+
+        return normalized
 
     def _show_interactive_review(self, manifest: FreezeManifest) -> None:
         fields = {

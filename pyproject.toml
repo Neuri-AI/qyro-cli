@@ -9,9 +9,12 @@ maintainers = [
 ]
 dynamic = ["classifiers"]
 keywords = [
-    "ppg", "python", "pyqt", "pyside", "desktop", "application",
-    "generator", "cli", "component", "state management", "pyside6"
+    "ppg", "python", "cli", "python-cli", "developer-tools", "build-tool",
+    "project-generator", "app-packaging", "packaging", "code-signing", "cross-platform",
+    "desktop-app", "mobile-app", "pyinstaller", "pyqt", "pyside", "pyside6", 
+    "kivy", "tkinter"
 ]
+
 license = "MIT"
 requires-python = ">=3.10,<3.16"
 readme = "README.md"

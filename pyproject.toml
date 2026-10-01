@@ -2,7 +2,7 @@
 [project]
 name = "qyro-cli"
 version = "1.0.0"
-description = "A CLI for Qyro Engine app generator"
+description = "A CLI for Qyro app generator"
 authors = [{ name = "Neuri", email = "ppg@neuri.ai" }]
 maintainers = [
     { name = "Luis Alfredo De Los Reyes", email = "alfredo@neuri.ai" },
@@ -22,7 +22,7 @@ dependencies = [
     "rich>=15.0.0,<16.0.0",
     "prompt-toolkit>=3.0.53,<4.0.0",
     "questionary>=2.1.1,<3.0.0",
-    "qyro-engine @ git+https://github.com/Neuri-AI/qyro-engine.git",
+    "qyro @ git+https://github.com/Neuri-AI/qyro.git",
 ]
 
 [project.optional-dependencies]

@@ -14,14 +14,14 @@ distributed with Qyro CLI and remain subject to their respective licenses.
 For the complete license terms of a dependency, refer to the license provided
 by the respective project.
 
-# Qyro Engine
+# Qyro
 
-URL: https://github.com/Neuri-AI/qyro-engine
+URL: https://github.com/Neuri-AI/qyro
 
-The Qyro CLI generates and orchestrates applications based on Qyro Engine.
+The Qyro CLI generates and orchestrates applications based on Qyro.
 
-Qyro Engine is distributed under its own applicable license terms.
-See the Qyro Engine repository for its license and third-party notices.
+Qyro is distributed under its own applicable license terms.
+See the Qyro repository for its license and third-party notices.
 
 # PyInstaller
 

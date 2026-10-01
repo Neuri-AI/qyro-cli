@@ -863,7 +863,7 @@ files = [
 prompt_toolkit = ">=2.0,<4.0"
 
 [[package]]
-name = "qyro-engine"
+name = "qyro"
 version = "0.1.0"
 description = "Clean Architecture runtime engine and lifecycle framework for Python desktop GUI applications (Qt, Kivy, Tkinter)"
 optional = false
@@ -883,7 +883,7 @@ sentry = ["sentry-sdk (>=1.30.0)"]
 
 [package.source]
 type = "git"
-url = "https://github.com/Neuri-AI/qyro-engine.git"
+url = "https://github.com/Neuri-AI/qyro.git"
 reference = "HEAD"
 resolved_reference = "b4a321399613fc2552edd7cdc57fe1d0544e3945"
 

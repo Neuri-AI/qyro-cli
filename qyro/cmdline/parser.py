@@ -14,7 +14,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="qyro",
         description=(
-            "Qyro Engine CLI — Cross-platform application builder."
+            "Qyro CLI — Cross-platform application builder."
         ),
     )
 

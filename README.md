@@ -437,7 +437,7 @@ npm install -g create-dmg
 
 ## 🖼️ Supported Framework Ecosystem
 
-`qyro-cli` generates apps that integrate natively with `qyro-engine` adapters:
+`qyro-cli` generates apps that integrate natively with `qyro` adapters:
 
 | Binding | Adapter | Best For |
 | :--- | :--- | :--- |
@@ -492,4 +492,4 @@ MIT. See [LICENSE](LICENSE).
 
 - **Organization:** [Neuri](https://github.com/Neuri-AI)
 - **Lead Maintainer:** Luis Alfredo De Los Reyes ([luisalfredoreyes98@gmail.com](mailto:luisalfredoreyes98@gmail.com))
-- **Ecosystem:** [Qyro Engine](https://github.com/Neuri-AI/qyro-engine) • [Qyro CLI](https://github.com/Neuri-AI/qyro-cli) • [Boilerplates](https://github.com/Neuri-AI)
+- **Ecosystem:** [Qyro](https://github.com/Neuri-AI/qyro) • [Qyro CLI](https://github.com/Neuri-AI/qyro-cli) • [Boilerplates](https://github.com/Neuri-AI)

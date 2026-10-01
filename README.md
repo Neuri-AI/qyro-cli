@@ -90,7 +90,7 @@ qyro init --name my-app
 You can preselect a binding and template version:
 
 ```bash
-qyro init --name my-app --binding PySide6 --template-version 1.0.0
+qyro init --name my-app --binding PySide6 --template-version 1.0.x
 ```
 
 Supported `--binding` values:

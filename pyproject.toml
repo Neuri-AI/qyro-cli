@@ -22,7 +22,7 @@ dependencies = [
     "rich>=15.0.0,<16.0.0",
     "prompt-toolkit>=3.0.53,<4.0.0",
     "questionary>=2.1.1,<3.0.0",
-    "qyro @ git+https://github.com/Neuri-AI/qyro.git",
+    "qyro-engine @ git+https://github.com/Neuri-AI/qyro.git",
 ]
 
 [project.optional-dependencies]

@@ -21,15 +21,18 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Install Poetry
+      - name: Install Poetry (Force v2.x Core)
         run: |
-          curl -sSL https://python-poetry.org | python3 -
+          curl -sSL https://install.python-poetry.org | POETRY_VERSION=2.0.1 python3 -
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      - name: Install project dependencies
-        run: poetry install --no-interaction
+      - name: Configure Poetry and Install Dependencies
+        run: |
+          poetry config virtualenvs.create true
+          poetry config virtualenvs.in-project true
+          poetry install --no-interaction --all-extras
 
-      - name: Build release distributions
+      - name: Build release distributions (Poetry Core 2.0)
         run: |
           poetry build
 

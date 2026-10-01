@@ -36,12 +36,12 @@ mobile = [
 ]
 
 [project.scripts]
-qyro = "qyro.cmdline.app:main"
+qyro = "qyro_cli.cmdline.app:main"
 
 [tool.poetry]
 package-mode = true
 
-packages = [{ include = "qyro" }]
+packages = [{ include = "qyro_cli" }]
 
 classifiers = [
     "Intended Audience :: Developers",

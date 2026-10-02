@@ -15,7 +15,6 @@ from qyro_cli.domain.version import Version
 from qyro_cli.domain.mobile import MobileTarget
 from qyro_cli.domain.project import (
     Binding,
-    ComponentSpec,
     ProjectConfig,
     TargetPlatform,
 )
@@ -117,21 +116,6 @@ class FileSystemPort(Protocol):
 
     def render_tree(self, root: str, variables: dict[str, object], exclude: Sequence[str] | None = None) -> None: ...
 
-
-class ComponentWriterPort(Protocol):
-    """Renders and writes generated components/views."""
-
-    def render(self, spec: ComponentSpec) -> str:
-        """Produce component source code."""
-
-    def target_exists(self, spec: ComponentSpec) -> bool: ...
-
-    def write(
-        self,
-        spec: ComponentSpec,
-        code: str,
-    ) -> str:
-        """Write generated code and return its destination directory."""
 
 
 # --- Templates --------------------------------------------------------------

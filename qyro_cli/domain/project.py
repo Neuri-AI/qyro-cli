@@ -11,7 +11,7 @@ import re
 from enum import Enum
 from typing import Dict, Optional
 from dataclasses import dataclass, field
-from qyro_cli.domain.errors import InvalidComponentTypeError, InvalidBindingError
+from qyro_cli.domain.errors import InvalidBindingError
 from qyro_cli.domain.version import Version
 
 
@@ -221,43 +221,3 @@ class ProjectConfig:
         return pascal or "App"
 
 
-class ComponentType(str, Enum):
-    COMPONENT = "component"
-    VIEW = "view"
-
-    @classmethod
-    def values(cls) -> tuple:
-        return tuple(t.value for t in cls)
-
-    @classmethod
-    def parse(cls, value: str) -> "ComponentType":
-        for member in cls:
-            if member.value == str(value).strip().lower():
-                return member
-        raise InvalidComponentTypeError(str(value), cls.values())
-
-    @property
-    def directory_name(self) -> str:
-        """components/ or views/."""
-        return self.value + "s"
-
-
-@dataclass
-class ComponentSpec:
-    """A component or view to be generated."""
-
-    name: str
-    type: ComponentType
-    binding: Binding
-    inherits_from: str
-
-    @property
-    def file_name(self) -> str:
-        return f"{self.name}.py"
-
-    def template_variables(self) -> Dict[str, str]:
-        return {
-            "Binding": self.binding.value,
-            "Name": self.name,
-            "Widget": self.inherits_from,
-        }

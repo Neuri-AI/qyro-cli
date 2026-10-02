@@ -230,7 +230,7 @@ def test_package_nsis_renders_external_template(tmp_path, monkeypatch):
     assert 'WriteRegStr SHCTX "${UNINST_KEY}" "Publisher" "Team $\\"A$\\\""' in content
     assert "OutFile \"..\\My App-2.1.0-setup.exe\"" in content
     assert '!define VERSION "2.1.0.0"' in content
-    assert 'File /r /x "My App-installer.nsi" /x "README.md" "..\\My App\\*"' in content
+    assert 'File /r /x ${app_name}-installer.nsi /x README.md /x install.ico /x uninstall.ico ..\\${app_name}\\*'.replace("${app_name}", "My App") in content
     assert '!define MUI_ICON "' in content
     assert '!define MUI_UNICON "' in content
     assert '!define MUI_WELCOMEFINISHPAGE_BITMAP "' in content

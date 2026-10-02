@@ -21,7 +21,7 @@ def test_execute_delegates_to_sign_use_case(monkeypatch):
     container.sign_compiled_app_use_case = use_case
 
     monkeypatch.setattr(
-        "qyro.cmdline.commands.sign.get_container",
+        "qyro_cli.cmdline.commands.sign.get_container",
         lambda: container,
     )
 
@@ -33,6 +33,7 @@ def test_execute_delegates_to_sign_use_case(monkeypatch):
     use_case.execute.assert_called_once_with(
         project_root=ANY,
         target_platform="windows",
+        mac_overrides=None,
     )
 
 
@@ -42,7 +43,7 @@ def test_execute_runs_check_mode(monkeypatch):
     container.sign_compiled_app_use_case = use_case
 
     monkeypatch.setattr(
-        "qyro.cmdline.commands.sign.get_container",
+        "qyro_cli.cmdline.commands.sign.get_container",
         lambda: container,
     )
 
@@ -54,6 +55,7 @@ def test_execute_runs_check_mode(monkeypatch):
     use_case.check.assert_called_once_with(
         project_root=ANY,
         target_platform="mac",
+        mac_overrides=None,
     )
     use_case.execute.assert_not_called()
 
@@ -67,7 +69,7 @@ def test_execute_returns_one_on_error(monkeypatch):
     container.ui = Mock()
 
     monkeypatch.setattr(
-        "qyro.cmdline.commands.sign.get_container",
+        "qyro_cli.cmdline.commands.sign.get_container",
         lambda: container,
     )
 

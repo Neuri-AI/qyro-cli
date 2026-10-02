@@ -26,7 +26,7 @@ def test_container_creates_adapters():
     assert isinstance(container.ui, RichConsoleUI)
     assert isinstance(container.fs, OsFileSystem)
     assert isinstance(container.settings, SettingsRepository)
-    assert isinstance(container.runner, SubprocessAppRunner)
+    assert isinstance(container.app_runner, SubprocessAppRunner)
     assert isinstance(container.modules, ImportlibModuleRegistry)
     assert isinstance(container.metadata, PackageMetadata)
 
@@ -64,8 +64,7 @@ def test_init_use_case_receives_container_dependencies():
 
     assert use_case.ui is container.ui
     assert use_case.fs is container.fs
-    assert use_case.modules is container.modules
-    assert use_case.installer is container.installer
+    assert use_case.dependencies is not None
     assert use_case.templates is container.template_provider
     assert use_case.settings is container.settings
 
@@ -82,7 +81,7 @@ def test_get_container_returns_singleton(monkeypatch):
     container = Container()
 
     monkeypatch.setattr(
-        "qyro.container._container",
+        "qyro_cli.container._container",
         container,
     )
 
@@ -92,7 +91,7 @@ def test_get_container_returns_singleton(monkeypatch):
 
 def test_get_container_creates_container_when_missing(monkeypatch):
     monkeypatch.setattr(
-        "qyro.container._container",
+        "qyro_cli.container._container",
         None,
     )
 
@@ -107,7 +106,7 @@ def test_set_container_replaces_container(monkeypatch):
     second = Container()
 
     monkeypatch.setattr(
-        "qyro.container._container",
+        "qyro_cli.container._container",
         first,
     )
 

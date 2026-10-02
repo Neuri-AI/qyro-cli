@@ -3,10 +3,10 @@ import json
 from qyro_cli.adapters.persistence.storage import SettingsRepository
 
 
-def test_loads_base_from_build_settings_when_settings_missing(tmp_path):
-    build_settings = tmp_path / "build" / "settings"
-    build_settings.mkdir(parents=True)
-    (build_settings / "base.json").write_text(
+def test_loads_base_from_settings_base(tmp_path):
+    settings_dir = tmp_path / "settings"
+    settings_dir.mkdir(parents=True)
+    (settings_dir / "base.json").write_text(
         json.dumps({"app_name": "LegacyApp", "version": "1.2.3"}),
         encoding="utf-8",
     )
@@ -17,14 +17,14 @@ def test_loads_base_from_build_settings_when_settings_missing(tmp_path):
     assert repo.get("version") == "1.2.3"
 
 
-def test_activate_profile_reads_release_from_build_settings(tmp_path):
-    build_settings = tmp_path / "build" / "settings"
-    build_settings.mkdir(parents=True)
-    (build_settings / "base.json").write_text(
+def test_activate_profile_reads_release_from_settings_directory(tmp_path):
+    settings_dir = tmp_path / "settings"
+    settings_dir.mkdir(parents=True)
+    (settings_dir / "base.json").write_text(
         json.dumps({"app_name": "LegacyApp"}),
         encoding="utf-8",
     )
-    (build_settings / "release.json").write_text(
+    (settings_dir / "release.json").write_text(
         json.dumps(
             {
                 "bundle": {

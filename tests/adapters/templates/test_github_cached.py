@@ -41,11 +41,11 @@ class TestGitHubCachedTemplateProvider:
 
         result = provider._resolve_repo(
             Binding.PYSIDE6,
-            TargetPlatform.X86,
+            TargetPlatform.X86_64,
         )
 
         assert result == (
-            "Neuri-AI/qyro-template-pyside6-x86_64"
+            "Neuri-AI/qyro-boilerplate-qt"
         )
 
     def test_resolve_repo_uses_ios(self, tmp_path):
@@ -59,7 +59,7 @@ class TestGitHubCachedTemplateProvider:
             TargetPlatform.IPHONE,
         )
 
-        assert result == "Neuri-AI/qyro-template-kivy-ios"
+        assert result == "Neuri-AI/qyro-boilerplate-kivy-iphone"
 
     def test_resolve_repo_uses_android(self, tmp_path):
         provider = GitHubCachedTemplateProvider(
@@ -73,7 +73,7 @@ class TestGitHubCachedTemplateProvider:
         )
 
         assert result == (
-            "Neuri-AI/qyro-template-pyside6-android"
+            "Neuri-AI/qyro-boilerplate-pyside6-android"
         )
 
     def test_cache_name_contains_binding_platform_and_version(
@@ -87,12 +87,12 @@ class TestGitHubCachedTemplateProvider:
 
         result = provider._cache_name(
             Binding.PYSIDE6,
-            TargetPlatform.X86,
+            TargetPlatform.X86_64,
             Version.parse("1.1.0"),
         )
 
         assert result == (
-            "template-pyside6-x86_64-1.1.0"
+            "template-qt-desktop-1.1.0"
         )
 
     def test_find_compatible_tags_filters_versions(self, tmp_path):
@@ -165,7 +165,7 @@ class TestGitHubCachedTemplateProvider:
 
         result = provider.resolve_template(
             Binding.PYSIDE6,
-            TargetPlatform.X86,
+            TargetPlatform.X86_64,
         )
 
         assert result == downloaded
@@ -209,7 +209,7 @@ class TestGitHubCachedTemplateProvider:
 
         result = provider.resolve_template(
             Binding.PYSIDE6,
-            TargetPlatform.X86,
+            TargetPlatform.X86_64,
             requested_version,
         )
 
@@ -219,7 +219,7 @@ class TestGitHubCachedTemplateProvider:
             zipball_url="https://example.com/1.0.0.zip",
             cached_path=(
                 tmp_path
-                / "template-pyside6-x86_64-1.0.0"
+                / "template-qt-desktop-1.0.0"
             ),
             headers=mock_any_headers(),
         )
@@ -231,7 +231,7 @@ class TestGitHubCachedTemplateProvider:
     ):
         cached_path = (
             tmp_path
-            / "template-pyside6-x86_64-1.1.0"
+            / "template-qt-desktop-1.1.0"
         )
         cached_path.mkdir()
 
@@ -261,7 +261,7 @@ class TestGitHubCachedTemplateProvider:
 
         result = provider.resolve_template(
             Binding.PYSIDE6,
-            TargetPlatform.X86,
+            TargetPlatform.X86_64,
         )
 
         assert result == cached_path
@@ -274,7 +274,7 @@ class TestGitHubCachedTemplateProvider:
     ):
         cached_path = (
             tmp_path
-            / "template-pyside6-x86_64-1.1.0"
+            / "template-qt-desktop-1.1.0"
         )
         cached_path.mkdir()
 
@@ -291,7 +291,7 @@ class TestGitHubCachedTemplateProvider:
 
         result = provider.resolve_template(
             Binding.PYSIDE6,
-            TargetPlatform.X86,
+            TargetPlatform.X86_64,
             Version.parse("1.1.0"),
         )
 
@@ -316,7 +316,7 @@ class TestGitHubCachedTemplateProvider:
         with pytest.raises(TemplateUnavailableError):
             provider.resolve_template(
                 Binding.PYSIDE6,
-                TargetPlatform.X86,
+                TargetPlatform.X86_64,
                 Version.parse("1.1.0"),
             )
 
@@ -327,11 +327,11 @@ class TestGitHubCachedTemplateProvider:
     ):
         old_template = (
             tmp_path
-            / "template-pyside6-x86_64-1.0.0"
+            / "template-qt-desktop-1.0.0"
         )
         new_template = (
             tmp_path
-            / "template-pyside6-x86_64-1.1.0"
+            / "template-qt-desktop-1.1.0"
         )
 
         old_template.mkdir()
@@ -350,7 +350,7 @@ class TestGitHubCachedTemplateProvider:
 
         result = provider.resolve_template(
             Binding.PYSIDE6,
-            TargetPlatform.X86,
+            TargetPlatform.X86_64,
         )
 
         assert result == new_template
@@ -386,7 +386,7 @@ class TestGitHubCachedTemplateProvider:
 
         with pytest.MonkeyPatch.context() as monkeypatch:
             monkeypatch.setattr(
-                "qyro.adapters.templates.github_cached.requests.get",
+                "qyro_cli.adapters.templates.github_cached.requests.get",
                 Mock(return_value=response),
             )
 
@@ -436,7 +436,7 @@ class TestGitHubCachedTemplateProvider:
 
         with pytest.MonkeyPatch.context() as monkeypatch:
             monkeypatch.setattr(
-                "qyro.adapters.templates.github_cached.requests.get",
+                "qyro_cli.adapters.templates.github_cached.requests.get",
                 Mock(return_value=response),
             )
 
@@ -480,7 +480,7 @@ class TestGitHubCachedTemplateProvider:
 
         with pytest.MonkeyPatch.context() as monkeypatch:
             monkeypatch.setattr(
-                "qyro.adapters.templates.github_cached.requests.get",
+                "qyro_cli.adapters.templates.github_cached.requests.get",
                 Mock(return_value=response),
             )
 
@@ -503,7 +503,7 @@ class TestGitHubCachedTemplateProvider:
         with pytest.raises(TemplateUnavailableError):
             provider._resolve_cached_template(
                 Binding.PYSIDE6,
-                TargetPlatform.X86,
+                TargetPlatform.X86_64,
             )
 
     def test_download_template_reports_progress(
@@ -544,7 +544,7 @@ class TestGitHubCachedTemplateProvider:
                 yield content[10:]
 
         with patch(
-            "qyro.adapters.templates.github_cached.requests.get",
+            "qyro_cli.adapters.templates.github_cached.requests.get",
             return_value=Response(),
         ):
             cached_path = (
@@ -562,7 +562,7 @@ class TestGitHubCachedTemplateProvider:
         assert result == cached_path
         assert progress.started
         assert progress.started[0] == (
-            "Downloading project template",
+            "Downloading boilerplate...",
             len(content),
         )
         assert progress.updates

@@ -25,7 +25,7 @@ def test_execute_delegates_to_bundle_use_case(monkeypatch):
     container.bundle_release_use_case = use_case
 
     monkeypatch.setattr(
-        "qyro.cmdline.commands.bundle.get_container",
+        "qyro_cli.cmdline.commands.bundle.get_container",
         lambda: container,
     )
 
@@ -59,7 +59,7 @@ def test_execute_returns_one_on_error(monkeypatch):
     container.ui = Mock()
 
     monkeypatch.setattr(
-        "qyro.cmdline.commands.bundle.get_container",
+        "qyro_cli.cmdline.commands.bundle.get_container",
         lambda: container,
     )
 
@@ -83,7 +83,7 @@ def test_execute_runs_check_mode(monkeypatch):
     container.bundle_release_use_case = use_case
 
     monkeypatch.setattr(
-        "qyro.cmdline.commands.bundle.get_container",
+        "qyro_cli.cmdline.commands.bundle.get_container",
         lambda: container,
     )
 

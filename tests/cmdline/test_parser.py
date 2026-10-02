@@ -20,7 +20,7 @@ def test_build_parser_configures_registered_commands(monkeypatch):
     )
 
     monkeypatch.setattr(
-        "qyro.cmdline.parser.get_commands",
+        "qyro_cli.cmdline.parser.get_commands",
         lambda: {"test": definition},
     )
 
@@ -42,7 +42,7 @@ def test_build_parser_registers_aliases(monkeypatch):
     )
 
     monkeypatch.setattr(
-        "qyro.cmdline.parser.get_commands",
+        "qyro_cli.cmdline.parser.get_commands",
         lambda: {
             "version": definition,
             "v": definition,
@@ -71,7 +71,7 @@ def test_build_parser_processes_same_definition_only_once(monkeypatch):
     )
 
     monkeypatch.setattr(
-        "qyro.cmdline.parser.get_commands",
+        "qyro_cli.cmdline.parser.get_commands",
         lambda: {
             "version": definition,
             "v": definition,
@@ -92,7 +92,7 @@ def test_build_parser_requires_command(monkeypatch):
     )
 
     monkeypatch.setattr(
-        "qyro.cmdline.parser.get_commands",
+        "qyro_cli.cmdline.parser.get_commands",
         lambda: {"test": definition},
     )
 

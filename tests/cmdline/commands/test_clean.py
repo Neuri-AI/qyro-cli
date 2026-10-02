@@ -31,7 +31,7 @@ def test_execute_delegates_to_clean_use_case(monkeypatch):
     container.clean_project_use_case = use_case
 
     monkeypatch.setattr(
-        "qyro.cmdline.commands.clean.get_container",
+        "qyro_cli.cmdline.commands.clean.get_container",
         lambda: container,
     )
 
@@ -49,7 +49,7 @@ def test_execute_passes_release_flag(monkeypatch):
     container.clean_project_use_case = use_case
 
     monkeypatch.setattr(
-        "qyro.cmdline.commands.clean.get_container",
+        "qyro_cli.cmdline.commands.clean.get_container",
         lambda: container,
     )
 

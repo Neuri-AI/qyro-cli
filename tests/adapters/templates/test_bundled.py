@@ -13,7 +13,7 @@ class TestBundledTemplateProvider:
         template_dir = (
             tmp_path
             / "pyside6"
-            / "x86_64"
+            / "desktop"
         )
         template_dir.mkdir(parents=True)
 
@@ -21,13 +21,13 @@ class TestBundledTemplateProvider:
 
         result = provider.resolve_template(
             Binding.PYSIDE6,
-            TargetPlatform.X86,
+            TargetPlatform.X86_64,
         )
 
         assert result == template_dir
 
     def test_resolve_template_uses_ios_platform_name(self, tmp_path):
-        template_dir = tmp_path / "pyside6" / "ios"
+        template_dir = tmp_path / "pyside6" / "iphone"
         template_dir.mkdir(parents=True)
 
         provider = BundledTemplateProvider(tmp_path)
@@ -53,14 +53,14 @@ class TestBundledTemplateProvider:
         assert result == template_dir
 
     def test_resolve_template_accepts_version(self, tmp_path):
-        template_dir = tmp_path / "pyside6" / "x86_64"
+        template_dir = tmp_path / "pyside6" / "desktop"
         template_dir.mkdir(parents=True)
 
         provider = BundledTemplateProvider(tmp_path)
 
         result = provider.resolve_template(
             Binding.PYSIDE6,
-            TargetPlatform.X86,
+            TargetPlatform.X86_64,
             Version.parse("1.1.0"),
         )
 
@@ -75,5 +75,5 @@ class TestBundledTemplateProvider:
         with pytest.raises(TemplateUnavailableError):
             provider.resolve_template(
                 Binding.PYSIDE6,
-                TargetPlatform.X86,
+                TargetPlatform.X86_64,
             )

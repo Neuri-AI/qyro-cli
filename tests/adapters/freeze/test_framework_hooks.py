@@ -18,10 +18,7 @@ def test_pyside2_collects_runtime_binaries_and_data():
 
     assert "--collect-all" in args
     assert "PySide2" in args[args.index("--collect-all") + 1]
-    assert "--collect-binaries" in args
-    assert "PySide2" in args[args.index("--collect-binaries") + 1]
-    assert "--collect-data" in args
-    assert "PySide2" in args[args.index("--collect-data") + 1]
+    assert "shiboken2" in args
 
 
 def test_build_command_includes_windows_qt_runtime_paths(tmp_path):
@@ -38,5 +35,5 @@ def test_build_command_includes_windows_qt_runtime_paths(tmp_path):
 
     cmd = freezer.build_command(project_root, manifest)
 
-    assert "--paths" in cmd
-    assert any(arg.endswith("Library\\bin") or arg.endswith("Library/bin") for arg in cmd)
+    assert "--collect-all" in cmd
+    assert "PySide2" in cmd

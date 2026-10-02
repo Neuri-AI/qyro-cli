@@ -86,16 +86,6 @@ class InvalidVersionError(QyroError):
         self.version_str = version_str
 
 
-class InvalidComponentTypeError(QyroError):
-    def __init__(self, value: str, valid_values: tuple):
-        super().__init__(
-            f"Invalid component type '{value}'.",
-            hint=f"Valid component types are: {', '.join(valid_values)}",
-        )
-        self.value = value
-        self.valid_values = valid_values
-
-
 class InvalidBindingError(QyroError):
     def __init__(self, value: str, valid_values: tuple):
         super().__init__(

@@ -30,7 +30,7 @@ class TestImportlibModuleRegistry:
         registry = ImportlibModuleRegistry()
 
         with mock.patch(
-            "qyro.adapters.process.runners.find_spec",
+            "qyro_cli.adapters.process.runners.find_spec",
             side_effect=ImportError,
         ):
             assert registry.is_installed("example") is False
@@ -41,7 +41,7 @@ class TestImportlibModuleRegistry:
         registry = ImportlibModuleRegistry()
 
         with mock.patch(
-            "qyro.adapters.process.runners.find_spec",
+            "qyro_cli.adapters.process.runners.find_spec",
             side_effect=ValueError,
         ):
             assert registry.is_installed("example") is False
@@ -52,7 +52,7 @@ class TestSubprocessAppRunner:
         monkeypatch.setenv("PYTHONPATH", "existing/path")
 
         with mock.patch(
-            "qyro.adapters.process.runners.subprocess.run"
+            "qyro_cli.adapters.process.runners.subprocess.run"
         ) as run:
             run.return_value.returncode = 0
 
@@ -79,7 +79,7 @@ class TestSubprocessAppRunner:
         monkeypatch.delenv("PYTHONPATH", raising=False)
 
         with mock.patch(
-            "qyro.adapters.process.runners.subprocess.run"
+            "qyro_cli.adapters.process.runners.subprocess.run"
         ) as run:
             run.return_value.returncode = 7
 
@@ -97,7 +97,7 @@ class TestSubprocessAppRunner:
         runner = SubprocessAppRunner()
 
         with mock.patch(
-            "qyro.adapters.process.runners.subprocess.run"
+            "qyro_cli.adapters.process.runners.subprocess.run"
         ) as run:
             run.return_value.returncode = 42
 
@@ -133,7 +133,7 @@ class TestUnittestRunner:
         runner = UnittestRunner()
 
         with mock.patch(
-            "qyro.adapters.process.runners.defaultTestLoader.discover"
+            "qyro_cli.adapters.process.runners.defaultTestLoader.discover"
         ) as discover:
             discover.return_value = mock.Mock()
             discover.return_value.__iter__ = mock.Mock(
@@ -158,10 +158,10 @@ class TestUnittestRunner:
         discovered_test = mock.Mock()
 
         with mock.patch(
-            "qyro.adapters.process.runners.defaultTestLoader.discover",
+            "qyro_cli.adapters.process.runners.defaultTestLoader.discover",
             return_value=discovered_test,
         ) as discover, mock.patch(
-            "qyro.adapters.process.runners.TextTestRunner.run"
+            "qyro_cli.adapters.process.runners.TextTestRunner.run"
         ) as test_runner_run:
             result = runner.run(
                 str(tmp_path),

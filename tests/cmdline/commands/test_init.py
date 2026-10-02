@@ -44,7 +44,7 @@ def test_execute_delegates_to_init_use_case(monkeypatch):
     container.init_project_use_case = use_case
 
     monkeypatch.setattr(
-        "qyro.cmdline.commands.init.get_container",
+        "qyro_cli.cmdline.commands.init.get_container",
         lambda: container,
     )
 
@@ -60,7 +60,7 @@ def test_execute_delegates_to_init_use_case(monkeypatch):
 
     use_case.execute.assert_called_once_with(
         target_dir="MyApp",
-        preselected_binding="PySide6",
+        default_binding="PySide6",
         template_version="1.2.3",
     )
 
@@ -71,7 +71,7 @@ def test_execute_passes_none_for_optional_arguments(monkeypatch):
     container.init_project_use_case = use_case
 
     monkeypatch.setattr(
-        "qyro.cmdline.commands.init.get_container",
+        "qyro_cli.cmdline.commands.init.get_container",
         lambda: container,
     )
 
@@ -87,7 +87,7 @@ def test_execute_passes_none_for_optional_arguments(monkeypatch):
 
     use_case.execute.assert_called_once_with(
         target_dir=".",
-        preselected_binding=None,
+        default_binding=None,
         template_version=None,
     )
 

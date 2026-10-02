@@ -4,7 +4,7 @@ from unittest.mock import patch
 from qyro_cli.adapters.package.metadata import PackageMetadata
 
 
-@patch("qyro.adapters.package.metadata.version")
+@patch("qyro_cli.adapters.package.metadata.version")
 def test_qyro_version(mock_version):
     mock_version.return_value = "1.2.3"
 

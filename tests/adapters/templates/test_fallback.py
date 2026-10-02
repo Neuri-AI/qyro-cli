@@ -21,14 +21,14 @@ class TestFallbackTemplateProvider:
 
         result = provider.resolve_template(
             Binding.PYSIDE6,
-            TargetPlatform.X86,
+            TargetPlatform.X86_64,
         )
 
         assert result == template_path
 
         primary.resolve_template.assert_called_once_with(
             binding=Binding.PYSIDE6,
-            target_platform=TargetPlatform.X86,
+            target_platform=TargetPlatform.X86_64,
             version=None,
         )
         fallback.resolve_template.assert_not_called()
@@ -51,14 +51,14 @@ class TestFallbackTemplateProvider:
 
         result = provider.resolve_template(
             Binding.PYSIDE6,
-            TargetPlatform.X86,
+            TargetPlatform.X86_64,
         )
 
         assert result == template_path
 
         fallback.resolve_template.assert_called_once_with(
             binding=Binding.PYSIDE6,
-            target_platform=TargetPlatform.X86,
+            target_platform=TargetPlatform.X86_64,
             version=None,
         )
 
@@ -78,7 +78,7 @@ class TestFallbackTemplateProvider:
 
         result = provider.resolve_template(
             Binding.PYSIDE6,
-            TargetPlatform.X86,
+            TargetPlatform.X86_64,
             version,
         )
 
@@ -86,7 +86,7 @@ class TestFallbackTemplateProvider:
 
         primary.resolve_template.assert_called_once_with(
             binding=Binding.PYSIDE6,
-            target_platform=TargetPlatform.X86,
+            target_platform=TargetPlatform.X86_64,
             version=version,
         )
 
@@ -110,7 +110,7 @@ class TestFallbackTemplateProvider:
 
         result = provider.resolve_template(
             Binding.PYSIDE6,
-            TargetPlatform.X86,
+            TargetPlatform.X86_64,
             version,
         )
 
@@ -118,6 +118,6 @@ class TestFallbackTemplateProvider:
 
         fallback.resolve_template.assert_called_once_with(
             binding=Binding.PYSIDE6,
-            target_platform=TargetPlatform.X86,
+            target_platform=TargetPlatform.X86_64,
             version=version,
         )

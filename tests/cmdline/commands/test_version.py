@@ -21,7 +21,7 @@ def test_execute_delegates_to_version_use_case(monkeypatch):
     container.show_version_use_case = use_case
 
     monkeypatch.setattr(
-        "qyro.cmdline.commands.version.get_container",
+        "qyro_cli.cmdline.commands.version.get_container",
         lambda: container,
     )
 

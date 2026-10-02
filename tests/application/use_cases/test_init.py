@@ -1,5 +1,3 @@
-
-import json
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -7,39 +5,46 @@ import pytest
 
 from qyro_cli.application.use_cases.init import InitProjectUseCase
 from qyro_cli.domain.errors import ProjectAlreadyExistsError
-from qyro_cli.domain.project import (
-    AddonModule,
-    Binding,
-    TargetPlatform,
-)
+from qyro_cli.domain.project import Binding, TargetPlatform
 from qyro_cli.domain.version import Version
 
 
 def make_use_case():
     ui = Mock()
     fs = Mock()
-    modules = Mock()
-    installer = Mock()
+    dependencies = Mock()
     templates = Mock()
     settings = Mock()
 
     use_case = InitProjectUseCase(
         ui=ui,
         fs=fs,
-        modules=modules,
-        installer=installer,
+        dependencies=dependencies,
         templates=templates,
         settings_repo=settings,
     )
 
-    return use_case, ui, fs, modules, installer, templates, settings
+    return use_case, ui, fs, dependencies, templates, settings
+
+
+def configure_common_answers(ui, *, include_binding=True, platform="Desktop (x86_64)"):
+    if include_binding:
+        ui.ask_choice.side_effect = [platform, "PySide6"]
+    else:
+        ui.ask_choice.side_effect = [platform]
+
+    ui.ask_text.side_effect = [
+        "MyApp",
+        "1.0.0",
+        "John Doe",
+    ]
+    ui.ask_multi_choice.return_value = []
+    ui.confirm.return_value = True
 
 
 class TestInitProjectUseCase:
     def test_execute_raises_when_project_already_exists(self, tmp_path):
-        use_case, ui, fs, modules, installer, templates, settings = (
-            make_use_case()
-        )
+        use_case, ui, fs, _dependencies, templates, _settings = make_use_case()
 
         fs.exists.return_value = True
 
@@ -47,56 +52,35 @@ class TestInitProjectUseCase:
             use_case.execute(str(tmp_path))
 
         assert exc_info.value.path == str(tmp_path.resolve())
-
-        ui.info.assert_not_called()
+        ui.welcome.assert_not_called()
         templates.resolve_template.assert_not_called()
         fs.copy_tree.assert_not_called()
 
     def test_execute_uses_preselected_binding(self, tmp_path):
-        (
-            use_case,
-            ui,
-            fs,
-            modules,
-            installer,
-            templates,
-            settings,
-        ) = make_use_case()
+        use_case, ui, fs, dependencies, templates, _settings = make_use_case()
 
         fs.exists.return_value = False
-        fs.default_author.return_value = "John Doe"
-        modules.is_installed.return_value = True
-        ui.ask_choice.return_value = "Desktop (x86)"
-        ui.ask_text.side_effect = [
-            "MyApp",
-            "1.0.0",
-            "John Doe",
-        ]
-        ui.ask_multi_choice.return_value = []
-        ui.confirm.return_value = False
+        fs.current_user.return_value = "John Doe"
+        templates.resolve_template.return_value = Path("/templates/pyside6")
+        configure_common_answers(ui, include_binding=False)
 
         use_case.execute(
             target_dir=str(tmp_path),
-            preselected_binding="PySide6",
+            default_binding="PySide6",
         )
 
         choices = [call.args[0] for call in ui.ask_choice.call_args_list]
 
         assert choices == ["Select target platform"]
+        templates.resolve_template.assert_called_once_with(
+            binding=Binding.PYSIDE6,
+            target_platform=TargetPlatform.X86_64,
+            version=None,
+        )
+        dependencies.install.assert_called_once_with(str(tmp_path.resolve()))
 
-    def test_execute_rejects_binding_not_supported_by_platform(
-        self,
-        tmp_path,
-    ):
-        (
-            use_case,
-            ui,
-            fs,
-            modules,
-            installer,
-            templates,
-            settings,
-        ) = make_use_case()
+    def test_execute_rejects_binding_not_supported_by_platform(self, tmp_path):
+        use_case, ui, fs, _dependencies, _templates, _settings = make_use_case()
 
         fs.exists.return_value = False
         ui.ask_choice.return_value = "iPhone"
@@ -104,228 +88,60 @@ class TestInitProjectUseCase:
         with pytest.raises(ValueError, match="not available"):
             use_case.execute(
                 target_dir=str(tmp_path),
-                preselected_binding="PyQt6",
+                default_binding="PyQt6",
             )
 
-    def test_execute_installs_missing_binding(self, tmp_path):
-        (
-            use_case,
-            ui,
-            fs,
-            modules,
-            installer,
-            templates,
-            settings,
-        ) = make_use_case()
+    def test_execute_runs_dependency_install_after_scaffolding(self, tmp_path):
+        use_case, ui, fs, dependencies, templates, _settings = make_use_case()
 
         fs.exists.return_value = False
-        fs.default_author.return_value = "John Doe"
-
-        ui.ask_choice.side_effect = [
-            "Desktop (x86)",
-            "PySide6",
-        ]
-        ui.ask_text.side_effect = [
-            "MyApp",
-            "1.0.0",
-            "John Doe",
-        ]
-        ui.ask_multi_choice.return_value = []
-        ui.confirm.return_value = True
-
-        modules.is_installed.return_value = False
+        fs.current_user.return_value = "John Doe"
+        templates.resolve_template.return_value = Path("/templates/pyside6")
+        configure_common_answers(ui)
 
         use_case.execute(target_dir=str(tmp_path))
 
-        installer.install.assert_called_once_with("PySide6")
+        dependencies.install.assert_called_once_with(str(tmp_path.resolve()))
 
-    def test_execute_installs_missing_addons(self, tmp_path):
-        (
-            use_case,
-            ui,
-            fs,
-            modules,
-            installer,
-            templates,
-            settings,
-        ) = make_use_case()
+    def test_execute_aborts_before_installing_or_resolving_template(self, tmp_path):
+        use_case, ui, fs, dependencies, templates, _settings = make_use_case()
 
         fs.exists.return_value = False
-        fs.default_author.return_value = "John Doe"
-
-        ui.ask_choice.side_effect = [
-            "Desktop (x86)",
-            "PySide6",
-        ]
-        ui.ask_text.side_effect = [
-            "MyApp",
-            "1.0.0",
-            "John Doe",
-        ]
-        ui.ask_multi_choice.return_value = [
-            "Pydux (Redux-style State Management)",
-            "Sentry (Crash Reporting Integration)",
-        ]
-        ui.confirm.return_value = True
-
-        modules.is_installed.side_effect = [
-            True,
-            False,
-            False,
-        ]
-
-        use_case.execute(target_dir=str(tmp_path))
-
-        assert installer.install.call_args_list == [
-            ((AddonModule.PYDUX.value,), {}),
-            ((AddonModule.SENTRY.value,), {}),
-        ]
-
-    def test_execute_does_not_install_already_installed_dependencies(
-        self,
-        tmp_path,
-    ):
-        (
-            use_case,
-            ui,
-            fs,
-            modules,
-            installer,
-            templates,
-            settings,
-        ) = make_use_case()
-
-        fs.exists.return_value = False
-        fs.default_author.return_value = "John Doe"
-
-        ui.ask_choice.side_effect = [
-            "Desktop (x86)",
-            "PySide6",
-        ]
-        ui.ask_text.side_effect = [
-            "MyApp",
-            "1.0.0",
-            "John Doe",
-        ]
-        ui.ask_multi_choice.return_value = [
-            "Pydux (Redux-style State Management)",
-        ]
-        ui.confirm.return_value = False
-
-        modules.is_installed.return_value = True
-
-        use_case.execute(target_dir=str(tmp_path))
-
-        installer.install.assert_not_called()
-
-    def test_execute_aborts_before_installing_or_resolving_template(
-        self,
-        tmp_path,
-    ):
-        (
-            use_case,
-            ui,
-            fs,
-            modules,
-            installer,
-            templates,
-            settings,
-        ) = make_use_case()
-
-        fs.exists.return_value = False
-        fs.default_author.return_value = "John Doe"
-
-        ui.ask_choice.side_effect = [
-            "Desktop (x86)",
-            "PySide6",
-        ]
-        ui.ask_text.side_effect = [
-            "MyApp",
-            "1.0.0",
-            "John Doe",
-        ]
-        ui.ask_multi_choice.return_value = []
+        fs.current_user.return_value = "John Doe"
+        configure_common_answers(ui)
         ui.confirm.return_value = False
 
         use_case.execute(target_dir=str(tmp_path))
 
-        installer.install.assert_not_called()
+        dependencies.install.assert_not_called()
         templates.resolve_template.assert_not_called()
         fs.copy_tree.assert_not_called()
-        fs.write_file.assert_not_called()
-
+        fs.render_tree.assert_not_called()
         ui.info.assert_any_call("Operation aborted by user.")
 
-    def test_execute_resolves_template_without_explicit_version(
-        self,
-        tmp_path,
-    ):
-        (
-            use_case,
-            ui,
-            fs,
-            modules,
-            installer,
-            templates,
-            settings,
-        ) = make_use_case()
+    def test_execute_resolves_template_without_explicit_version(self, tmp_path):
+        use_case, ui, fs, _dependencies, templates, _settings = make_use_case()
 
-        template_dir = Path("/templates/pyside6")
-        templates.resolve_template.return_value = template_dir
-
+        templates.resolve_template.return_value = Path("/templates/pyside6")
         fs.exists.return_value = False
-        fs.default_author.return_value = "John Doe"
-        modules.is_installed.return_value = True
-
-        ui.ask_choice.side_effect = [
-            "Desktop (x86)",
-            "PySide6",
-        ]
-        ui.ask_text.side_effect = [
-            "MyApp",
-            "1.0.0",
-            "John Doe",
-        ]
-        ui.ask_multi_choice.return_value = []
-        ui.confirm.return_value = True
+        fs.current_user.return_value = "John Doe"
+        configure_common_answers(ui)
 
         use_case.execute(target_dir=str(tmp_path))
 
         templates.resolve_template.assert_called_once_with(
             binding=Binding.PYSIDE6,
-            target_platform=TargetPlatform.X86,
+            target_platform=TargetPlatform.X86_64,
             version=None,
         )
 
     def test_execute_resolves_requested_template_version(self, tmp_path):
-        (
-            use_case,
-            ui,
-            fs,
-            modules,
-            installer,
-            templates,
-            settings,
-        ) = make_use_case()
+        use_case, ui, fs, _dependencies, templates, _settings = make_use_case()
 
-        template_dir = Path("/templates/pyside6")
-        templates.resolve_template.return_value = template_dir
-
+        templates.resolve_template.return_value = Path("/templates/pyside6")
         fs.exists.return_value = False
-        fs.default_author.return_value = "John Doe"
-        modules.is_installed.return_value = True
-
-        ui.ask_choice.side_effect = [
-            "Desktop (x86)",
-            "PySide6",
-        ]
-        ui.ask_text.side_effect = [
-            "MyApp",
-            "1.0.0",
-            "John Doe",
-        ]
-        ui.ask_multi_choice.return_value = []
-        ui.confirm.return_value = True
+        fs.current_user.return_value = "John Doe"
+        configure_common_answers(ui)
 
         use_case.execute(
             target_dir=str(tmp_path),
@@ -334,39 +150,18 @@ class TestInitProjectUseCase:
 
         templates.resolve_template.assert_called_once_with(
             binding=Binding.PYSIDE6,
-            target_platform=TargetPlatform.X86,
+            target_platform=TargetPlatform.X86_64,
             version=Version.parse("1.1.0"),
         )
 
     def test_execute_copies_template_to_destination(self, tmp_path):
-        (
-            use_case,
-            ui,
-            fs,
-            modules,
-            installer,
-            templates,
-            settings,
-        ) = make_use_case()
+        use_case, ui, fs, _dependencies, templates, _settings = make_use_case()
 
         template_dir = Path("/templates/pyside6")
         templates.resolve_template.return_value = template_dir
-
         fs.exists.return_value = False
-        fs.default_author.return_value = "John Doe"
-        modules.is_installed.return_value = True
-
-        ui.ask_choice.side_effect = [
-            "Desktop (x86)",
-            "PySide6",
-        ]
-        ui.ask_text.side_effect = [
-            "MyApp",
-            "1.0.0",
-            "John Doe",
-        ]
-        ui.ask_multi_choice.return_value = []
-        ui.confirm.return_value = True
+        fs.current_user.return_value = "John Doe"
+        configure_common_answers(ui)
 
         use_case.execute(target_dir=str(tmp_path))
 
@@ -375,71 +170,34 @@ class TestInitProjectUseCase:
             tmp_path.resolve(),
         )
 
-    def test_execute_writes_base_settings(self, tmp_path):
-        (
-            use_case,
-            ui,
-            fs,
-            modules,
-            installer,
-            templates,
-            settings,
-        ) = make_use_case()
+    def test_execute_renders_template_variables_and_settings(self, tmp_path):
+        use_case, ui, fs, _dependencies, templates, _settings = make_use_case()
 
-        template_dir = Path("/templates/pyside6")
-        templates.resolve_template.return_value = template_dir
-
+        templates.resolve_template.return_value = Path("/templates/pyside6")
         fs.exists.return_value = False
-        fs.default_author.return_value = "John Doe"
-        modules.is_installed.return_value = True
-
-        ui.ask_choice.side_effect = [
-            "Desktop (x86)",
-            "PySide6",
+        fs.current_user.return_value = "John Doe"
+        configure_common_answers(ui)
+        ui.ask_multi_choice.return_value = [
+            "Pydux (Redux-style State Management)",
+            "Sentry (Crash Reporting Integration)",
         ]
-        ui.ask_text.side_effect = [
-            "MyApp",
-            "1.2.3",
-            "John Doe",
-        ]
-        ui.ask_multi_choice.return_value = []
-        ui.confirm.return_value = True
 
         use_case.execute(target_dir=str(tmp_path))
 
-        expected_settings = {
-            "binding": "PySide6",
-            "version": "1.2.3",
-            "hidden_imports": ["__future__"],
-        }
+        fs.render_tree.assert_called_once()
+        variables = fs.render_tree.call_args.args[1]
 
-        fs.write_file.assert_called_once_with(
-            str(tmp_path.resolve() / "src" / "build" / "base.json"),
-            json.dumps(expected_settings, indent=2),
-        )
+        assert variables["binding"] == "PySide6"
+        assert variables["version"] == "1.0.0"
+        assert variables["addons"] == ["pydux", "sentry-sdk"]
 
     def test_execute_configures_ios_bundle_identifier(self, tmp_path):
-        (
-            use_case,
-            ui,
-            fs,
-            modules,
-            installer,
-            templates,
-            settings,
-        ) = make_use_case()
+        use_case, ui, fs, _dependencies, templates, _settings = make_use_case()
 
-        template_dir = Path("/templates/pyside6")
-        templates.resolve_template.return_value = template_dir
-
+        templates.resolve_template.return_value = Path("/templates/pyside6")
         fs.exists.return_value = False
-        fs.default_author.return_value = "John Doe"
-        modules.is_installed.return_value = True
-
-        ui.ask_choice.side_effect = [
-            "iPhone",
-            "PySide6",
-        ]
+        fs.current_user.return_value = "John Doe"
+        ui.ask_choice.side_effect = ["iPhone", "PySide6"]
         ui.ask_text.side_effect = [
             "MyApp",
             "1.0.0",
@@ -456,27 +214,12 @@ class TestInitProjectUseCase:
         assert summary["Mac bundle identifier"] == "com.john.myapp"
 
     def test_execute_limits_mobile_addons_to_pydux(self, tmp_path):
-        (
-            use_case,
-            ui,
-            fs,
-            modules,
-            installer,
-            templates,
-            settings,
-        ) = make_use_case()
+        use_case, ui, fs, _dependencies, templates, _settings = make_use_case()
 
-        template_dir = Path("/templates/pyside6")
-        templates.resolve_template.return_value = template_dir
-
+        templates.resolve_template.return_value = Path("/templates/pyside6")
         fs.exists.return_value = False
-        fs.default_author.return_value = "John Doe"
-        modules.is_installed.return_value = True
-
-        ui.ask_choice.side_effect = [
-            "Android",
-            "PySide6",
-        ]
+        fs.current_user.return_value = "John Doe"
+        ui.ask_choice.side_effect = ["Android", "PySide6"]
         ui.ask_text.side_effect = [
             "MyApp",
             "1.0.0",
@@ -502,23 +245,11 @@ class TestInitProjectUseCase:
         )
 
     def test_execute_parses_version_before_confirmation(self, tmp_path):
-        (
-            use_case,
-            ui,
-            fs,
-            modules,
-            installer,
-            templates,
-            settings,
-        ) = make_use_case()
+        use_case, ui, fs, _dependencies, templates, _settings = make_use_case()
 
         fs.exists.return_value = False
-        fs.default_author.return_value = "John Doe"
-
-        ui.ask_choice.side_effect = [
-            "Desktop (x86)",
-            "PySide6",
-        ]
+        fs.current_user.return_value = "John Doe"
+        ui.ask_choice.side_effect = ["Desktop (x86_64)", "PySide6"]
         ui.ask_text.side_effect = [
             "MyApp",
             "not-a-version",

@@ -23,7 +23,7 @@ class TestProjectGuards:
         guards.require_existing_project()
 
         files.exists.assert_called_once_with(
-            "src/build/settings/base.json"
+            "pyproject.toml"
         )
 
     def test_require_existing_project_raises_when_base_settings_do_not_exist(
@@ -40,7 +40,7 @@ class TestProjectGuards:
             guards.require_existing_project()
 
         files.exists.assert_called_once_with(
-            "src/build/settings/base.json"
+            "pyproject.toml"
         )
 
     def test_require_frozen_app_passes_when_freeze_directory_exists(self):
@@ -55,13 +55,13 @@ class TestProjectGuards:
         guards.require_frozen_app()
 
         assert files.exists.call_args_list[0].args == (
-            "src/build/settings/base.json",
+            "pyproject.toml",
         )
         assert files.exists.call_args_list[1].args == ("target",)
 
         settings.get_optional.assert_called_once_with(
             "freeze_dir",
-            "target",
+            "build",
         )
 
     def test_require_frozen_app_uses_configured_freeze_directory(self):
@@ -107,7 +107,7 @@ class TestProjectGuards:
         guards.require_installer()
 
         assert files.exists.call_args_list[0].args == (
-            "src/build/settings/base.json",
+            "pyproject.toml",
         )
         assert files.exists.call_args_list[1].args == (
             "target/installer.exe",

@@ -3,7 +3,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 from rich.console import Console
 
-from qyro_cli.adapters.cli.console_ui import RichConsoleUI
+from qyro_cli.adapters.cli.console_ui import (
+    QUESTIONARY_STYLE,
+    RichConsoleUI,
+)
 
 
 @pytest.fixture
@@ -16,7 +19,7 @@ def ui(console):
     return RichConsoleUI(console=console)
 
 
-@patch("qyro.adapters.cli.console_ui.Prompt.ask")
+@patch("qyro_cli.adapters.cli.console_ui.Prompt.ask")
 def test_ask_text(mock_ask, ui):
     mock_ask.return_value = "MyApp"
 
@@ -26,10 +29,12 @@ def test_ask_text(mock_ask, ui):
     mock_ask.assert_called_once_with(
         "[bold]Application name[/bold]",
         default="",
+        show_default=True,
+        console=ui._console,
     )
 
 
-@patch("qyro.adapters.cli.console_ui.Prompt.ask")
+@patch("qyro_cli.adapters.cli.console_ui.Prompt.ask")
 def test_ask_text_with_default(mock_ask, ui):
     mock_ask.return_value = "MyApp"
 
@@ -42,6 +47,8 @@ def test_ask_text_with_default(mock_ask, ui):
     mock_ask.assert_called_once_with(
         "[bold]Application name[/bold]",
         default="DefaultApp",
+        show_default=True,
+        console=ui._console,
     )
 
 
@@ -55,7 +62,7 @@ def test_ask_choice_without_choices(ui):
     assert result == "PySide6"
 
 
-@patch("qyro.adapters.cli.console_ui.questionary.select")
+@patch("qyro_cli.adapters.cli.console_ui.questionary.select")
 def test_ask_choice(mock_select, ui):
     mock_select.return_value.ask.return_value = "PySide6"
 
@@ -67,30 +74,29 @@ def test_ask_choice(mock_select, ui):
     assert result == "PySide6"
 
     mock_select.assert_called_once_with(
-        "Binding [PySide6/PyQt6] ():",
+        "Binding",
         choices=["PySide6", "PyQt6"],
         default="PySide6",
-        style=ui.__class__.__module__ and mock_select.call_args.kwargs["style"],
+        style=QUESTIONARY_STYLE,
     )
 
 
-@patch("qyro.adapters.cli.console_ui.questionary.select")
-def test_ask_choice_returns_default_when_cancelled(
+@patch("qyro_cli.adapters.cli.console_ui.questionary.select")
+def test_ask_choice_raises_when_cancelled(
     mock_select,
     ui,
 ):
     mock_select.return_value.ask.return_value = None
 
-    result = ui.ask_choice(
-        "Binding",
-        ["PySide6", "PyQt6"],
-        default="PyQt6",
-    )
+    with pytest.raises(KeyboardInterrupt):
+        ui.ask_choice(
+            "Binding",
+            ["PySide6", "PyQt6"],
+            default="PyQt6",
+        )
 
-    assert result == "PyQt6"
 
-
-@patch("qyro.adapters.cli.console_ui.questionary.checkbox")
+@patch("qyro_cli.adapters.cli.console_ui.questionary.checkbox")
 def test_ask_multi_choice(mock_checkbox, ui):
     mock_checkbox.return_value.ask.return_value = [
         "Sentry",
@@ -120,22 +126,21 @@ def test_ask_multi_choice(mock_checkbox, ui):
     )
 
 
-@patch("qyro.adapters.cli.console_ui.questionary.checkbox")
-def test_ask_multi_choice_returns_empty_list_when_cancelled(
+@patch("qyro_cli.adapters.cli.console_ui.questionary.checkbox")
+def test_ask_multi_choice_raises_when_cancelled(
     mock_checkbox,
     ui,
 ):
     mock_checkbox.return_value.ask.return_value = None
 
-    result = ui.ask_multi_choice(
-        "Add-ons",
-        ["Sentry"],
-    )
+    with pytest.raises(KeyboardInterrupt):
+        ui.ask_multi_choice(
+            "Add-ons",
+            ["Sentry"],
+        )
 
-    assert result == []
 
-
-@patch("qyro.adapters.cli.console_ui.Confirm.ask")
+@patch("qyro_cli.adapters.cli.console_ui.Confirm.ask")
 def test_confirm(mock_confirm, ui):
     mock_confirm.return_value = True
 
@@ -143,12 +148,13 @@ def test_confirm(mock_confirm, ui):
 
     assert result is True
     mock_confirm.assert_called_once_with(
-        "[bold yellow]Continue?[/bold yellow]",
+        "[bold #fff]Continue?[/bold #fff]",
         default=True,
+        console=ui._console,
     )
 
 
-@patch("qyro.adapters.cli.console_ui.Confirm.ask")
+@patch("qyro_cli.adapters.cli.console_ui.Confirm.ask")
 def test_confirm_with_default(mock_confirm, ui):
     mock_confirm.return_value = False
 
@@ -159,8 +165,9 @@ def test_confirm_with_default(mock_confirm, ui):
 
     assert result is False
     mock_confirm.assert_called_once_with(
-        "[bold yellow]Continue?[/bold yellow]",
+        "[bold #fff]Continue?[/bold #fff]",
         default=False,
+        console=ui._console,
     )
 
 
@@ -178,7 +185,7 @@ def test_show_summary(ui, console):
     panel = console.print.call_args.args[0]
 
     assert panel.title == "[bold]Project[/bold]"
-    assert panel.border_style == "blue"
+    assert panel.border_style == "#ff8c00"
     assert panel.renderable.title == "Project Configuration"
 
 
@@ -189,17 +196,17 @@ def test_show_summary(ui, console):
         (
             "success",
             "done",
-            "\n🎉 [bold green]done[/bold green]",
+            "[bold #fff]done[/bold #fff]",
         ),
         (
             "warning",
             "warning",
-            "[yellow]warning[/yellow]",
+            "[#fdba74]warning[/#fdba74]",
         ),
         (
             "progress",
             "working",
-            "⏳ working",
+            "[#fdba74]⏳ working[/#fdba74]",
         ),
         (
             "error",

@@ -13,12 +13,9 @@ from string import Template
 from typing import Sequence, Any
 
 from qyro_cli.domain.errors import MissingSettingError
-from qyro_cli.domain.project import ComponentSpec
 
 BASE_SETTINGS = "settings/base.json"
-LEGACY_BASE_SETTINGS = "build/settings/base.json"
 SECRETS_SETTINGS = "settings/secrets.json"
-LEGACY_SECRETS_SETTINGS = "build/settings/secrets.json"
 TEXT_EXTENSIONS = {
     ".cfg",
     ".ini",
@@ -149,27 +146,22 @@ class SettingsRepository:
 
     def _detect_base_settings_path(self) -> Path:
         settings_base = self._root / BASE_SETTINGS
-        legacy_base = self._root / LEGACY_BASE_SETTINGS
 
-        if settings_base.exists():
-            return settings_base
-        if legacy_base.exists():
-            return legacy_base
+        if not settings_base.exists():
+            raise MissingSettingError(str(settings_base))
+
         return settings_base
 
     def _settings_dirs(self) -> list[Path]:
-        # Load legacy first; modern settings/ can override when both exist.
-        dirs = [
-            self._root / "build" / "settings",
-            self._root / "settings",
-        ]
-        return [d for d in dirs if d.exists() and d.is_dir()]
+        settings_dir = self._root / "settings"
+        if settings_dir.exists() and settings_dir.is_dir():
+            return [settings_dir]
+        return []
 
     def _load_base(self) -> dict:
         merged: dict[str, Any] = {}
 
         for base_path in [
-            self._root / LEGACY_BASE_SETTINGS,
             self._root / BASE_SETTINGS,
         ]:
             if not base_path.exists():
@@ -202,7 +194,6 @@ class SettingsRepository:
         committed to source control.
         """
         for secrets_path in [
-            self._root / LEGACY_SECRETS_SETTINGS,
             self._root / SECRETS_SETTINGS,
         ]:
             data = self._load_json_dict(secrets_path)
@@ -281,32 +272,3 @@ class SettingsRepository:
                 self._deep_merge(base[k], v)
             else:
                 base[k] = v
-
-
-class ComponentFileWriter:
-    """ComponentWriterPort: renders and writes a component/view file."""
-
-    def __init__(self, project_root: Path = None):
-        self._root = project_root or Path.cwd()
-
-    def _directory(self, spec: ComponentSpec) -> Path:
-        return (self._root / "src" / "main" / "python"
-                / spec.type.directory_name)
-
-    def target_path(self, spec: ComponentSpec) -> str:
-        return str(self._directory(spec) / spec.file_name)
-
-    def target_exists(self, spec: ComponentSpec) -> bool:
-        return Path(self.target_path(spec)).exists()
-
-    def render(self, spec: ComponentSpec) -> str:
-        """from qyro_cli.builtin_commands.components import component_template
-        return Template(component_template).substitute(
-            **spec.template_variables()
-        )"""
-
-    def write(self, spec: ComponentSpec, code: str) -> str:
-        directory = self._directory(spec)
-        directory.mkdir(parents=True, exist_ok=True)
-        (directory / spec.file_name).write_text(code, encoding="utf-8")
-        return str(directory)

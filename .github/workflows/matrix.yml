@@ -21,12 +21,17 @@ defaults:
 env:
   PYTHONUTF8: "1"
   PYTHONIOENCODING: utf-8
+  PYTHONUNBUFFERED: "1"                 # Live output in logs (no buffering)
   NO_COLOR: "1"                         # No ANSI codes in logs
+  QYRO_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  CACHE_VERSION: "1"                    # This number should be incremented to invalidate all caches
+  CACHE_VERSION: "1"                    # Increment this number to invalidate all caches
   CONDA_PKGS_DIRS: ~/conda_pkgs_dir     # Conda package cache
   PIP_CACHE_DIR: ~/.cache/qyro-pip      # Pip cache used within each environment
+  POETRY_CACHE_DIR: ~/.cache/qyro-poetry
+  POETRY_VIRTUALENVS_CREATE: "false"    # Install into the active conda environment
+  POETRY_NO_INTERACTION: "1"
 
 jobs:
   test-matrix:
@@ -58,11 +63,13 @@ jobs:
           restore-keys: |
             conda-${{ runner.os }}-${{ runner.arch }}-py${{ matrix.python-version }}-v${{ env.CACHE_VERSION }}-
 
-      - name: Restore pip cache
+      - name: Restore pip / poetry cache
         id: pip-cache
         uses: actions/cache/restore@v4
         with:
-          path: ~/.cache/qyro-pip
+          path: |
+            ~/.cache/qyro-pip
+            ~/.cache/qyro-poetry
           key: pip-${{ runner.os }}-${{ runner.arch }}-py${{ matrix.python-version }}-${{ matrix.framework }}-v${{ env.CACHE_VERSION }}-${{ steps.week.outputs.value }}-${{ hashFiles('pyproject.toml', 'poetry.lock') }}
           restore-keys: |
             pip-${{ runner.os }}-${{ runner.arch }}-py${{ matrix.python-version }}-${{ matrix.framework }}-v${{ env.CACHE_VERSION }}-${{ steps.week.outputs.value }}-
@@ -101,25 +108,33 @@ jobs:
 
       - name: Run orchestrator (Linux, Xvfb)
         if: runner.os == 'Linux'
+        timeout-minutes: 25
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"    # Mesa llvmpipe: GL without a GPU
         run: |
-          xvfb-run -a python scripts/run_matrix.py \
+          xvfb-run -a -s "-screen 0 1280x1024x24" python scripts/run_matrix.py \
             --python ${{ matrix.python-version }} \
             --framework ${{ matrix.framework }} \
             --cli-source . \
             --clean-environments
 
+      # Kivy needs an OpenGL context; macOS/Windows runners have no GPU, so the
+      # `qyro start` smoke test is skipped there (init, build and bundle still run).
       - name: Run orchestrator (Windows / macOS)
         if: runner.os != 'Linux'
+        timeout-minutes: 25
         env:
           QT_QPA_PLATFORM: minimal
           QT_QUICK_BACKEND: software
           KIVY_GL_BACKEND: sdl2
+          SKIP_START: ${{ matrix.framework == 'Kivy' && '--skip-start Kivy' || '' }}
         run: |
           python scripts/run_matrix.py \
             --python ${{ matrix.python-version }} \
             --framework ${{ matrix.framework }} \
             --cli-source . \
-            --clean-environments
+            --clean-environments \
+            $SKIP_START
 
       # Save caches even if the job fails, but not if it is cancelled
 
@@ -130,14 +145,16 @@ jobs:
           path: ~/conda_pkgs_dir
           key: ${{ steps.conda-cache.outputs.cache-primary-key }}
 
-      - name: Save pip cache
+      - name: Save pip / poetry cache
         if: ${{ !cancelled() && steps.pip-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v4
         with:
-          path: ~/.cache/qyro-pip
+          path: |
+            ~/.cache/qyro-pip
+            ~/.cache/qyro-poetry
           key: ${{ steps.pip-cache.outputs.cache-primary-key }}
 
-      # --- GitHub Actions summary ---
+      # --- Reporting ---
 
       - name: Upload logs on failure
         if: failure()

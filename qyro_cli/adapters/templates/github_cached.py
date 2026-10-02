@@ -59,7 +59,11 @@ class GitHubCachedTemplateProvider:
             "Accept": "application/vnd.github+json",
         }
 
-        token = os.environ.get("QYRO_GITHUB_TOKEN")
+        token = (
+            os.environ.get("QYRO_GITHUB_TOKEN")
+            or os.environ.get("GITHUB_TOKEN")
+            or os.environ.get("GH_TOKEN")
+        )
 
         if token:
             headers["Authorization"] = f"Bearer {token}"
@@ -104,6 +108,28 @@ class GitHubCachedTemplateProvider:
                     cached_path=cached_path,
                     headers=headers,
                 )
+
+            if version is None:
+                default_branch_url = self._default_branch_zipball_url(repo, headers)
+                if default_branch_url:
+                    fallback_version = self.min_version
+                    cached_path = (
+                        self.cache_dir
+                        / self._cache_name(
+                            binding,
+                            target_platform,
+                            fallback_version,
+                        )
+                    )
+
+                    if cached_path.exists():
+                        return cached_path
+
+                    return self._download_template(
+                        zipball_url=default_branch_url,
+                        cached_path=cached_path,
+                        headers=headers,
+                    )
 
         except requests.RequestException:
             pass
@@ -187,6 +213,28 @@ class GitHubCachedTemplateProvider:
         response.raise_for_status()
 
         return response.json()
+
+    def _default_branch_zipball_url(
+        self,
+        repo: str,
+        headers: dict[str, str],
+    ) -> str | None:
+        repo_url = f"https://api.github.com/repos/{repo}"
+
+        response = requests.get(
+            repo_url,
+            headers=headers,
+            timeout=10,
+        )
+        response.raise_for_status()
+
+        payload = response.json()
+        branch = str(payload.get("default_branch", "")).strip()
+
+        if not branch:
+            return None
+
+        return f"https://api.github.com/repos/{repo}/zipball/{branch}"
 
     def _find_compatible_tags(
         self,

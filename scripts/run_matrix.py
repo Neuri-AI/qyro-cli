@@ -9,6 +9,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,6 +19,10 @@ from typing import TextIO
 DEFAULT_CLI_REPOSITORY = (
     "https://github.com/Neuri-AI/qyro-cli.git"
 )
+
+# Maximum seconds any single subprocess may run before its whole
+# process tree is killed. Prevents CI jobs from freezing silently.
+DEFAULT_COMMAND_TIMEOUT = 900.0
 
 FRAMEWORK_PACKAGES = {
     "PySide6": "PySide6",
@@ -50,6 +55,7 @@ class TestResult:
     status: str
     failed_step: str | None = None
     error: str | None = None
+    start_skipped: bool = False
 
 
 def print_command(command: list[str]) -> None:
@@ -61,8 +67,9 @@ def run_command(
     *,
     cwd: Path | None = None,
     log_file: Path | None = None,
+    append_log: bool = False,
     check: bool = True,
-    timeout: float | None = None,
+    timeout: float | None = DEFAULT_COMMAND_TIMEOUT,
 ) -> subprocess.CompletedProcess[str]:
     print_command(command)
 
@@ -79,33 +86,96 @@ def run_command(
                 f"Working directory is not a directory: {resolved_cwd}"
             )
 
-    result = subprocess.run(
+    popen_kwargs: dict = {}
+
+    # Own process group / session so the whole tree can be killed.
+    if os.name == "nt":
+        popen_kwargs["creationflags"] = (
+            subprocess.CREATE_NEW_PROCESS_GROUP
+        )
+    else:
+        popen_kwargs["start_new_session"] = True
+
+    process = subprocess.Popen(
         command,
         cwd=resolved_cwd,
+        stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
         encoding="utf-8",
         errors="replace",
-        check=False,
-        timeout=timeout,
+        bufsize=1,
+        **popen_kwargs,
     )
+
+    chunks: list[str] = []
+
+    def pump() -> None:
+        assert process.stdout is not None
+
+        for line in process.stdout:
+            chunks.append(line)
+            print(line, end="", flush=True)
+
+    reader = threading.Thread(target=pump, daemon=True)
+    reader.start()
+
+    timed_out = False
+
+    try:
+        process.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+
+        print(
+            f"TIMEOUT after {timeout:.0f}s; killing process tree.",
+            file=sys.stderr,
+            flush=True,
+        )
+
+        close_process_tree(process)
+
+    # Do not wait forever for EOF if a grandchild keeps the pipe open.
+    reader.join(timeout=5)
+
+    output = "".join(chunks)
 
     if log_file:
         log_file.parent.mkdir(parents=True, exist_ok=True)
-        log_file.write_text(result.stdout, encoding="utf-8")
 
-    if result.stdout:
-        print(result.stdout, end="", flush=True)
+        mode = "a" if append_log else "w"
 
-    if check and result.returncode != 0:
-        raise subprocess.CalledProcessError(
-            result.returncode,
+        with log_file.open(mode, encoding="utf-8") as handle:
+            if append_log:
+                handle.write("$ " + " ".join(command) + "\n")
+
+            handle.write(output)
+
+            if append_log and output and not output.endswith("\n"):
+                handle.write("\n")
+
+    if timed_out:
+        raise subprocess.TimeoutExpired(
             command,
-            output=result.stdout,
+            timeout,
+            output=output,
         )
 
-    return result
+    returncode = process.returncode
+
+    if check and returncode != 0:
+        raise subprocess.CalledProcessError(
+            returncode,
+            command,
+            output=output,
+        )
+
+    return subprocess.CompletedProcess(
+        command,
+        returncode,
+        stdout=output,
+    )
 
 
 def find_conda() -> str:
@@ -179,8 +249,9 @@ def run_in_conda(
     *,
     cwd: Path | None = None,
     log_file: Path | None = None,
+    append_log: bool = False,
     check: bool = True,
-    timeout: float | None = None,
+    timeout: float | None = DEFAULT_COMMAND_TIMEOUT,
 ) -> subprocess.CompletedProcess[str]:
     return run_command(
         conda_run_command(
@@ -190,6 +261,7 @@ def run_in_conda(
             cwd=cwd,
         ),
         log_file=log_file,
+        append_log=append_log,
         check=check,
         timeout=timeout,
     )
@@ -269,6 +341,7 @@ def install_package(
             package,
         ],
         log_file=log_file,
+        append_log=True,
     )
 
 
@@ -320,6 +393,8 @@ def install_project(
         "PyInstaller",
         log_file,
     )
+
+    # `qyro init` uses Poetry; it is not guaranteed on CI runners.
     install_package(
         conda,
         environment,
@@ -532,6 +607,7 @@ def start_application(
 
     popen_kwargs = {
         "cwd": project_dir,
+        "stdin": subprocess.DEVNULL,
         "stdout": log_handle,
         "stderr": subprocess.STDOUT,
         "text": True,
@@ -634,6 +710,7 @@ def run_case(
     keep_projects: bool,
     recreate_environment: bool,
     clean_environment: bool,
+    skip_start: bool = False,
 ) -> TestResult:
     results_root = results_root.resolve()
 
@@ -691,6 +768,9 @@ def run_case(
 
         failed_step = "install"
 
+        # install.log is appended to by every install command.
+        (logs / "install.log").unlink(missing_ok=True)
+
         install_project(
             conda,
             environment,
@@ -720,16 +800,24 @@ def run_case(
                 logs / "pyqt5-fallback.log",
             )
 
-        failed_step = "start"
+        if skip_start:
+            print(
+                f"SKIP start: disabled for "
+                f"{FRAMEWORK_DISPLAY_NAMES[case.framework]} "
+                f"on this runner.",
+                flush=True,
+            )
+        else:
+            failed_step = "start"
 
-        start_application(
-            conda,
-            environment,
-            project_dir,
-            logs / "start.log",
-            startup_timeout=startup_timeout,
-            run_time=run_time,
-        )
+            start_application(
+                conda,
+                environment,
+                project_dir,
+                logs / "start.log",
+                startup_timeout=startup_timeout,
+                run_time=run_time,
+            )
 
         failed_step = "build"
 
@@ -765,6 +853,7 @@ def run_case(
             environment=environment,
             host_platform=host_platform,
             status="PASS",
+            start_skipped=skip_start,
         )
 
     except subprocess.CalledProcessError as error:
@@ -793,6 +882,7 @@ def run_case(
         )
 
     except Exception as error:
+        # Includes subprocess.TimeoutExpired.
         message = str(error)
 
         status_file.write_text(
@@ -854,11 +944,15 @@ def write_summary(
     ]
 
     for result in results:
-        status = (
-            "✅ PASS"
-            if result.status == "PASS"
-            else "❌ FAIL"
-        )
+        if result.status == "PASS":
+            status = (
+                "✅ PASS (start skipped)"
+                if result.start_skipped
+                else "✅ PASS"
+            )
+        else:
+            status = "❌ FAIL"
+
         step = result.failed_step or "—"
 
         lines.append(
@@ -877,6 +971,9 @@ def write_summary(
             "",
             "- `✅ PASS`: "
             "`init → start → build → bundle` completed.",
+            "- `✅ PASS (start skipped)`: "
+            "`init → build → bundle` completed; the `start` smoke "
+            "test was skipped (e.g. runner without a GPU).",
             "- `❌ FAIL`: inspect the step-specific log directory.",
             "- Results apply only to the host platform shown above.",
         ]
@@ -980,6 +1077,17 @@ def parse_arguments() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--skip-start",
+        nargs="*",
+        choices=sorted(FRAMEWORK_PACKAGES),
+        default=[],
+        help=(
+            "Frameworks for which the `qyro start` smoke test is "
+            "skipped (e.g. CI runners without a GPU)."
+        ),
+    )
+
+    parser.add_argument(
         "--keep-projects",
         action="store_true",
         help="Keep generated project directories.",
@@ -1053,6 +1161,7 @@ def main() -> int:
             keep_projects=args.keep_projects,
             recreate_environment=args.recreate_environments,
             clean_environment=args.clean_environments,
+            skip_start=case.framework in args.skip_start,
         )
 
         results.append(result)

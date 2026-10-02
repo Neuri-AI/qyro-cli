@@ -3,8 +3,24 @@ name: Qyro Matrix Tests
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "README.md"
+      - "**/*.md"
+      - "docs/**"
+      - "LICENSE"
+      - "NOTICE"
+      - ".github/FUNDING.yml"
+      - ".github/dependabot.yml"
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "README.md"
+      - "**/*.md"
+      - "docs/**"
+      - "LICENSE"
+      - "NOTICE"
+      - ".github/FUNDING.yml"
+      - ".github/dependabot.yml"
   workflow_dispatch:
 
 permissions:

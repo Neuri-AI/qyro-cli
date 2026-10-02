@@ -12,14 +12,15 @@
 > **The official developer CLI and project orchestrator for the [Qyro](https://github.com/Neuri-AI/qyro) desktop and mobile application ecosystem.**
 
 [![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14%20%7C%203.15-blue.svg)](https://python.org)
-![GitHub Release](https://img.shields.io/github/v/release/runesc/qyro?include_prereleases&display_name=release&color=stable)
-![GitHub Issues](https://img.shields.io/github/isxsues/runesc/qyro?color=%23ab7df8)
-![GitHub Issues Closed](https://img.shields.io/github/issues-closed/runesc/qyro?color=green)
-![GitHub forks](https://img.shields.io/github/forks/runesc/qyro)
-![GitHub stars](https://img.shields.io/github/stars/runesc/qyro)
+[![Qyro Platforms Tests](https://github.com/Neuri-AI/qyro-cli/actions/workflows/matrix.yml/badge.svg)](https://github.com/Neuri-AI/qyro-cli/actions/workflows/matrix.yml)
+![GitHub Release](https://img.shields.io/github/v/release/Neuri-AI/qyro?include_prereleases&display_name=release&color=stable)
+![GitHub Issues](https://img.shields.io/github/issues/Neuri-AI/qyro)
+![GitHub Issues Closed](https://img.shields.io/github/issues-closed/Neuri-AI/qyro?color=green)
+![GitHub forks](https://img.shields.io/github/forks/Neuri-AI/qyro)
+![GitHub stars](https://img.shields.io/github/stars/Neuri-AI/qyro)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Sponsor](https://img.shields.io/badge/Sponsor-Buy%20Me%20a%20Coffee-FFDD00?logo=buymeacoffee&logoColor=000000)](https://buymeacoffee.com/neuri)
-[![Qyro Platforms Tests](https://github.com/Neuri-AI/qyro-cli/actions/workflows/matrix.yml/badge.svg)](https://github.com/Neuri-AI/qyro-cli/actions/workflows/matrix.yml)
+
 
 > [!WARNING]
 > **Mobile support is a work in progress.** Every mobile-related feature described in this document (Buildozer packaging, the `[mobile]` extra, Android/iOS targets, Kivy on mobile) is **not finished yet**. For now, Qyro CLI **only works for desktop** (Windows, macOS and Linux).
@@ -47,23 +48,24 @@ for the specified framework, platform, and Python version:
 
 `init → start → build → bundle`
 
-| Framework | Platform | Python 3.10 | Python 3.11 | Python 3.12 | Python 3.13 | Python 3.14 | Fail Step
-| --------- | -------- | ----------- | ----------- | ----------- | ----------- | ----------- | ----------- |
-| PySide6   | Windows  | ✅           | ✅           | ✅           | ✅           | ✅           |
-| PySide6   | macOS    | —           | —           | —           | —           | —           |
-| PySide6   | Linux    | —           | —           | —           | —           | —           |
-| PyQt6     | Windows  | ✅           | ✅           | ✅           | ✅           | ✅           |
-| PyQt6     | macOS    | —           | —           | —           | —           | —           |
-| PyQt6     | Linux    | —           | —           | —           | —           | —           |
-| PyQt5     | Windows  | ✅           | ✅           | ✅           | ✅           | ✅           |
-| PyQt5     | macOS    | —           | —           | —           | —           | —           |
-| PyQt5     | Linux    | —           | —           | —           | —           | —           |
-| Kivy      | Windows  | ✅           | ✅           | ✅           | ✅           | ❌           | `install`
-| Kivy      | macOS    | —           | —           | —           | —           | —           |
-| Kivy      | Linux    | —           | —           | —           | —           | —           |
-| Tkinter   | Windows  | ✅           | ✅           | ✅           | ✅           | ✅           |
-| Tkinter   | macOS    | —           | —           | —           | —           | —           |
-| Tkinter   | Linux    | —           | —           | —           | —           | —           |
+| Framework | Platform | Python 3.10 | Python 3.11 | Python 3.12 | Python 3.13 | Python 3.14 | Fail Step |
+| --------- | -------- | ----------- | ----------- | ----------- | ----------- | ----------- | --------- |
+| **PySide6** | Windows | ✅  | ✅  | ✅  | ✅  | ✅  | — |
+| PySide6 | macOS | ✅  | ✅  | ✅  | ✅  | ✅  | — |
+| PySide6 | Linux | ✅  | ✅  | ✅  | ✅  | ✅  | — |
+| **PyQt6** | Windows | ✅  | ✅  | ✅  | ✅  | ✅  | — |
+| PyQt6 | macOS | ✅  | ✅  | ✅  | ✅  | ✅  | — |
+| PyQt6 | Linux | ✅  | ✅  | ✅  | ✅  | ✅  | — |
+| **PyQt5** | Windows | ✅  | ✅  | ✅  | ✅  | ✅  | — |
+| PyQt5 | macOS | ✅  | ✅  | ✅  | ✅  | ✅  | — |
+| PyQt5 | Linux | ✅  | ✅  | ✅  | ✅  | ✅  | — |
+| **Kivy** | Windows | ✅ | ✅ | ✅ | ✅ | ❌ FAIL | `install` |
+| Kivy | macOS | ✅ | ✅ | ✅ | ✅ | ✅  | — |
+| Kivy | Linux | ✅  | ✅  | ✅  | ✅  | ✅  | — |
+| **Tkinter** | Windows | ✅  | ✅  | ✅  | ✅  | ✅  | — |
+| Tkinter | macOS | ✅  | ✅  | ✅  | ✅  | ✅  | — |
+| Tkinter | Linux | ✅  | ✅  | ✅  | ✅  | ✅  | — |
+
 
 > `—` indicates that the combination has not yet been validated.
 >

@@ -2,11 +2,12 @@
   <img src="https://ik.imagekit.io/kummiktgaiq/ppg/Qyro-logo.svg?updatedAt=1755215983279" alt="Qyro Logo" width="50%">
 </p>
 
-# ⚡ Qyro CLI
-
 > [!WARNING]
-> **Mobile support is a work in progress.** Every mobile-related feature described in this document (Buildozer packaging, the `[mobile]` extra, Android/iOS targets, Kivy on mobile) is **not finished yet**. For now, Qyro CLI **only works for desktop** (Windows, macOS and Linux).
-> 
+> **Qyro CLI is currently in alpha.** Commands, flags, templates, packaging
+> behavior, and configuration formats may change between releases.
+> Desktop workflows are the current focus. Mobile support is not yet stable.
+
+# ⚡ Qyro CLI
 
 > **The official developer CLI and project orchestrator for the [Qyro](https://github.com/Neuri-AI/qyro) desktop and mobile application ecosystem.**
 
@@ -18,6 +19,10 @@
 ![GitHub stars](https://img.shields.io/github/stars/runesc/qyro)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Sponsor](https://img.shields.io/badge/Sponsor-Buy%20Me%20a%20Coffee-FFDD00?logo=buymeacoffee&logoColor=000000)](https://buymeacoffee.com/neuri)
+
+> [!WARNING]
+> **Mobile support is a work in progress.** Every mobile-related feature described in this document (Buildozer packaging, the `[mobile]` extra, Android/iOS targets, Kivy on mobile) is **not finished yet**. For now, Qyro CLI **only works for desktop** (Windows, macOS and Linux).
+>
 
 
 ---
@@ -31,6 +36,36 @@
 - **🔐 Code Signing & Notarization:** Windows Authenticode and macOS signing with optional notarization/stapling.
 - **✅ Release Preflight Checks:** Validate dependencies and `release.json` paths/options before packaging.
 - **🧹 Artifact Cleanup:** Clean build outputs and optional release outputs with one command.
+
+---
+
+## Compatibility
+
+A check mark indicates that the complete Qyro workflow has been validated
+for the specified framework, platform, and Python version:
+
+`init → start → build → bundle`
+
+| Framework | Platform | Python 3.10 | Python 3.11 | Python 3.12 | Python 3.13 | Python 3.14 |
+|---|---|---:|---:|---:|---:|---:|
+| PySide6 | Windows | — | — | — | — | — |
+| PySide6 | macOS | — | — | — | — | — |
+| PySide6 | Linux | — | — | — | — | — |
+| PyQt6 | Windows | — | — | — | — | — |
+| PyQt6 | macOS | — | — | — | — | — |
+| PyQt6 | Linux | — | — | — | — | — |
+| PyQt5 | Windows | — | — | — | — | — |
+| PyQt5 | macOS | — | — | — | — | — |
+| PyQt5 | Linux | — | — | — | — | — |
+| Kivy | Windows | — | — | — | — | — |
+| Kivy | macOS | — | — | — | — | — |
+| Kivy | Linux | — | — | — | — | — |
+| Tkinter | Windows | — | — | — | — | — |
+| Tkinter | macOS | — | — | — | — | — |
+| Tkinter | Linux | — | — | — | — | — |
+
+> Other combinations may work but have not yet been validated through the
+> complete workflow.
 
 ---
 
@@ -79,7 +114,41 @@ poetry add qyro-cli -E all
 
 ---
 
+## Qyro Settings Builder
+
+The **Qyro Settings Builder** provides a visual interface for preparing
+application, platform-specific, and release configuration files used by Qyro
+projects.
+
+It helps simplify the configuration of:
+
+- Application settings.
+- Platform-specific settings.
+- Release and packaging options.
+- Distribution metadata.
+
+Open the builder:
+
+[Open Qyro Settings Builder](https://qyro-settings-builder.up.railway.app/)
+
+Generated files can be placed in the project's `settings/` directory and
+reviewed before running Qyro CLI commands.
+
+> [!NOTE]
+> The Settings Builder is an auxiliary tool. Always review generated files
+> before building or releasing an application.
+
+---
+
 ## 💻 Quick Start & Usage
+
+Qyro CLI provides the complete desktop application workflow:
+
+1. Initialize a project from a framework template.
+2. Run the application from source.
+3. Freeze the application into executable artifacts.
+4. Bundle the artifacts for distribution.
+5. Optionally sign and notarize the release.
 
 ### 1) Initialize a project
 
@@ -388,6 +457,21 @@ Example:
 }
 ```
 
+---
+
+## Alpha Status
+
+The following areas are still under active development:
+
+- Some optional CLI flags may change or require further validation.
+- Mobile targets and Buildozer integration are not ready.
+- Code signing and notarization require platform-specific tools and
+  credentials.
+- Compatibility results depend on the framework, operating system, and Python
+  version combination.
+
+The documented compatibility matrix reflects only workflows that have been
+validated successfully.
 ---
 
 ## 🎛️ CLI Commands Reference

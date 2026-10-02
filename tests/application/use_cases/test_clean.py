@@ -1,6 +1,6 @@
 from unittest.mock import Mock
 
-from qyro.application.use_cases.clean import CleanProjectUseCase
+from qyro_cli.application.use_cases.clean import CleanProjectUseCase
 
 
 def make_use_case():

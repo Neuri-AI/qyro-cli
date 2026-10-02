@@ -5,14 +5,12 @@ from unittest import mock
 
 import pytest
 
-from qyro.adapters.process.runners import (
+from qyro_cli.adapters.process.runners import (
     ImportlibModuleRegistry,
-    PipPackageInstaller,
     QyroUploader,
     SubprocessAppRunner,
     UnittestRunner,
 )
-from qyro.domain.errors import PackageInstallationError
 
 
 class TestImportlibModuleRegistry:
@@ -47,32 +45,6 @@ class TestImportlibModuleRegistry:
             side_effect=ValueError,
         ):
             assert registry.is_installed("example") is False
-
-
-class TestPipPackageInstaller:
-    def test_install_runs_pip_with_current_python(self):
-        installer = PipPackageInstaller()
-
-        with mock.patch(
-            "qyro.adapters.process.runners.subprocess.run"
-        ) as run:
-            installer.install("requests")
-
-        run.assert_called_once_with(
-            [sys.executable, "-m", "pip", "install", "requests"],
-            check=True,
-        )
-
-    def test_install_raises_package_installation_error_on_failure(self):
-        installer = PipPackageInstaller()
-
-        with mock.patch(
-            "qyro.adapters.process.runners.subprocess.run",
-            side_effect=subprocess.CalledProcessError(1, ["pip"]),
-        ):
-            with pytest.raises(PackageInstallationError):
-                installer.install("invalid-package")
-
 
 class TestSubprocessAppRunner:
     def test_run_from_source_sets_pythonpath(self, monkeypatch):

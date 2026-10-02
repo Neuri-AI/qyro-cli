@@ -1,8 +1,8 @@
 from pathlib import Path
 from unittest.mock import Mock
 
-from qyro.application.use_cases.sign import SignCompiledAppUseCase
-from qyro.domain.build import SigningArtifact
+from qyro_cli.application.use_cases.sign import SignCompiledAppUseCase
+from qyro_cli.domain.build import SigningArtifact
 
 
 def test_sign_use_case_delegates_to_signer(tmp_path):

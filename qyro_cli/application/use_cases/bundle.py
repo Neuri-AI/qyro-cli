@@ -35,7 +35,7 @@ class BundleReleaseUseCase:
         package_format: str = "auto",
         target_platform: str = "auto",
     ) -> BundleArtifact:
-        root, app_name, freeze_dir, app_version, extra_files, dmg_options = self._prepare_bundle_context(
+        root, app_name, app_author, freeze_dir, app_version, extra_files, dmg_options = self._prepare_bundle_context(
             project_root=project_root,
         )
 
@@ -46,6 +46,7 @@ class BundleReleaseUseCase:
         artifact = self._bundler.bundle(
             project_root=root,
             app_name=app_name,
+            app_author=app_author,
             freeze_dir=freeze_dir,
             release_dir=release_dir,
             include_resources=include_resources,
@@ -75,7 +76,7 @@ class BundleReleaseUseCase:
         package_format: str = "auto",
         target_platform: str = "auto",
     ) -> None:
-        root, app_name, freeze_dir, _app_version, extra_files, dmg_options = self._prepare_bundle_context(
+        root, app_name, _app_author, freeze_dir, _app_version, extra_files, dmg_options = self._prepare_bundle_context(
             project_root=project_root,
         )
 
@@ -95,7 +96,7 @@ class BundleReleaseUseCase:
         self,
         *,
         project_root: Path | None,
-    ) -> tuple[Path, str, str, str, list[object], dict[str, object]]:
+    ) -> tuple[Path, str, str, str, str, list[object], dict[str, object]]:
         root = (project_root or Path.cwd()).resolve()
 
         if hasattr(self._settings, "activate_profile"):
@@ -105,6 +106,7 @@ class BundleReleaseUseCase:
         self._guards.require_frozen_app()
 
         app_name = str(self._settings.get_optional("app_name", root.name))
+        app_author = str(self._settings.get_optional("author", "Developer"))
         freeze_dir = str(self._settings.get_optional("freeze_dir", "build"))
         app_version = str(self._settings.get_optional("version", "1.0.0"))
         bundle_settings = self._settings.get_optional("bundle", {})
@@ -119,4 +121,4 @@ class BundleReleaseUseCase:
         if not isinstance(dmg_options, dict):
             dmg_options = {}
 
-        return root, app_name, freeze_dir, app_version, extra_files, dmg_options
+        return root, app_name, app_author, freeze_dir, app_version, extra_files, dmg_options

@@ -308,6 +308,7 @@ class BundlePort(Protocol):
         *,
         project_root: Path,
         app_name: str,
+        app_author: str,
         freeze_dir: str,
         release_dir: str,
         include_resources: bool,

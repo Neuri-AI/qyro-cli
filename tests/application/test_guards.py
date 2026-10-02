@@ -3,8 +3,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from qyro.application.guards import ProjectGuards
-from qyro.domain.errors import (
+from qyro_cli.application.guards import ProjectGuards
+from qyro_cli.domain.errors import (
     FrozenAppNotFoundError,
     InstallerNotFoundError,
     NotAProjectError,

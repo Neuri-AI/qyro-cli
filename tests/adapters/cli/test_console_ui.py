@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from rich.console import Console
 
-from qyro.adapters.cli.console_ui import RichConsoleUI
+from qyro_cli.adapters.cli.console_ui import RichConsoleUI
 
 
 @pytest.fixture

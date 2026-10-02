@@ -2,7 +2,7 @@
 import argparse
 from unittest.mock import Mock
 
-from qyro.cmdline.commands.init import InitCommand
+from qyro_cli.cmdline.commands.init import InitCommand
 
 
 def test_configure_defines_init_arguments():

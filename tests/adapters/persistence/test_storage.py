@@ -6,12 +6,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from qyro.adapters.persistence.storage import (
+from qyro_cli.adapters.persistence.storage import (
     ComponentFileWriter,
     OsFileSystem,
     SettingsRepository,
 )
-from qyro.domain.errors import MissingSettingError
+from qyro_cli.domain.errors import MissingSettingError
 
 
 class TestOsFileSystem:

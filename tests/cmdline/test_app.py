@@ -1,7 +1,7 @@
 
 from unittest.mock import Mock
 
-from qyro.cmdline import app
+from qyro_cli.cmdline import app
 
 
 def test_main_executes_registered_command(monkeypatch):

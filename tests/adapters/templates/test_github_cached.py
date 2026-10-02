@@ -5,12 +5,12 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 
-from qyro.adapters.templates.github_cached import (
+from qyro_cli.adapters.templates.github_cached import (
     GitHubCachedTemplateProvider,
 )
-from qyro.domain.errors import TemplateUnavailableError
-from qyro.domain.project import Binding, TargetPlatform
-from qyro.domain.version import Version
+from qyro_cli.domain.errors import TemplateUnavailableError
+from qyro_cli.domain.project import Binding, TargetPlatform
+from qyro_cli.domain.version import Version
 
 
 class FakeProgress:

@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from qyro.adapters.freeze.framework_hooks import FrameworkHookResolver
-from qyro.adapters.freeze.pyinstaller_adapter import PyInstallerFreezer
-from qyro.domain.build import FreezeManifest
+from qyro_cli.adapters.freeze.framework_hooks import FrameworkHookResolver
+from qyro_cli.adapters.freeze.pyinstaller_adapter import PyInstallerFreezer
+from qyro_cli.domain.build import FreezeManifest
 
 
 def test_pyside2_collects_runtime_binaries_and_data():

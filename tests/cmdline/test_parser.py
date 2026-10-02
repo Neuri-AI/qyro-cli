@@ -1,8 +1,8 @@
 
 import argparse
 
-from qyro.cmdline.models import CommandDefinition
-from qyro.cmdline.parser import build_parser
+from qyro_cli.cmdline.models import CommandDefinition
+from qyro_cli.cmdline.parser import build_parser
 
 
 def test_build_parser_configures_registered_commands(monkeypatch):

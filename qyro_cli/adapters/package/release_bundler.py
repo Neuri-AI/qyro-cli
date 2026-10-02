@@ -8,6 +8,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 import sys
+import re
 from pathlib import Path
 
 from qyro_cli.application.ports import BundlePort
@@ -22,6 +23,8 @@ from qyro_cli.domain.errors import (
 
 class ReleaseBundler(BundlePort):
     """Copy frozen artifacts into a release layout and optionally archive it."""
+
+    _NSIS_TEMPLATE_PATH = Path(__file__).resolve().parent / "templates" / "nsis_installer.nsi"
 
     def preflight(
         self,
@@ -76,6 +79,7 @@ class ReleaseBundler(BundlePort):
         *,
         project_root: Path,
         app_name: str,
+        app_author: str,
         freeze_dir: str,
         release_dir: str,
         include_resources: bool,
@@ -143,6 +147,7 @@ class ReleaseBundler(BundlePort):
                 output_root=output_root,
                 release_root=project_root / release_dir,
                 app_name=app_name,
+                app_author=app_author,
                 app_version=app_version,
                 platform_name=resolved_platform,
                 package_format=resolved_format,
@@ -211,6 +216,7 @@ class ReleaseBundler(BundlePort):
         output_root: Path,
         release_root: Path,
         app_name: str,
+        app_author: str,
         app_version: str,
         platform_name: str,
         package_format: str,
@@ -244,7 +250,13 @@ class ReleaseBundler(BundlePort):
         if package_format == "nsis":
             if platform_name != "windows":
                 raise UnsupportedOperationError("bundle:nsis", platform_name)
-            return self._package_nsis(output_root, release_root, app_name, app_version)
+            return self._package_nsis(
+                output_root,
+                release_root,
+                app_name,
+                app_author,
+                app_version,
+            )
 
         if package_format in ("deb", "rpm", "arch"):
             if platform_name != "linux":
@@ -576,32 +588,72 @@ class ReleaseBundler(BundlePort):
         output_root: Path,
         release_root: Path,
         app_name: str,
+        app_author: str,
         app_version: str,
     ) -> Path:
         if shutil.which("makensis") is None:
             raise MissingDependencyError("makensis")
 
         installer_path = release_root / f"{app_name}-{app_version}-setup.exe"
-        nsi_path = release_root / f"{app_name}-installer.nsi"
-        nsis_output = str(installer_path).replace("/", "\\")
-        source_dir = str(output_root).replace("/", "\\")
-
-        nsi_content = (
-            'OutFile "' + nsis_output + '"\n'
-            'Name "' + app_name + '"\n'
-            'InstallDir "$PROGRAMFILES\\' + app_name + '"\n'
-            'RequestExecutionLevel user\n'
-            'Page directory\n'
-            'Page instfiles\n\n'
-            'Section "Install"\n'
-            '  SetOutPath "$INSTDIR"\n'
-            '  File /r "' + source_dir + '\\*"\n'
-            'SectionEnd\n'
+        nsi_path = output_root / f"{app_name}-installer.nsi"
+        nsi_content = self._render_nsis_template(
+            app_name=app_name,
+            author=app_author,
+            installer=installer_path.name,
+            installer_version=self._to_nsis_version(app_version),
+            output_root=output_root,
         )
 
         nsi_path.write_text(nsi_content, encoding="utf-8")
-        self._run(["makensis", str(nsi_path)], cwd=str(release_root))
+        self._run(["makensis", str(nsi_path)], cwd=str(output_root))
         return installer_path
+
+    def _render_nsis_template(
+        self,
+        *,
+        app_name: str,
+        author: str,
+        installer: str,
+        installer_version: str,
+        output_root: Path,
+    ) -> str:
+        template = self._NSIS_TEMPLATE_PATH.read_text(encoding="utf-8")
+
+        icon_path = output_root / "Icon.ico"
+        icon_block = ""
+        if icon_path.exists():
+            icon_block = (
+                '!define MUI_ICON "..\\${app_name}\\Icon.ico"\n'
+                '!define MUI_UNICON "..\\${app_name}\\Icon.ico"\n\n'
+            )
+
+        replacements = {
+            "${app_name}": self._escape_nsis_string(app_name),
+            "${author}": self._escape_nsis_string(author),
+            "${installer}": self._escape_nsis_string(installer),
+            "${installer_version}": installer_version,
+            "${mui_icon_block}": icon_block,
+        }
+
+        rendered = template
+        for key, value in replacements.items():
+            rendered = rendered.replace(key, value)
+        return rendered
+
+    def _escape_nsis_string(self, value: str) -> str:
+        return value.replace("$", "$$").replace('"', '$\\"')
+
+    def _to_nsis_version(self, app_version: str) -> str:
+        chunks = [int(part) for part in re.findall(r"\d+", app_version)]
+        if not chunks:
+            return "1.0.0.0"
+
+        normalized = chunks[:4]
+        while len(normalized) < 4:
+            normalized.append(0)
+
+        capped = [min(part, 65535) for part in normalized]
+        return ".".join(str(part) for part in capped)
 
     def _package_linux_fpm(
         self,

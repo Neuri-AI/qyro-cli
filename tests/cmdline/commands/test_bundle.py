@@ -1,7 +1,7 @@
 import argparse
 from unittest.mock import ANY, Mock
 
-from qyro.cmdline.commands.bundle import BundleCommand
+from qyro_cli.cmdline.commands.bundle import BundleCommand
 
 
 def test_configure_defines_bundle_arguments():

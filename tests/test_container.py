@@ -1,24 +1,23 @@
 from pathlib import Path
 
-from qyro.container import (
+from qyro_cli.container import (
     Container,
     get_container,
     set_container,
 )
-from qyro.adapters.cli.console_ui import RichConsoleUI
-from qyro.adapters.package.metadata import PackageMetadata
-from qyro.adapters.persistence.storage import (
+from qyro_cli.adapters.cli.console_ui import RichConsoleUI
+from qyro_cli.adapters.package.metadata import PackageMetadata
+from qyro_cli.adapters.persistence.storage import (
     OsFileSystem,
     SettingsRepository,
 )
-from qyro.adapters.process.runners import (
+from qyro_cli.adapters.process.runners import (
     ImportlibModuleRegistry,
-    PipPackageInstaller,
     SubprocessAppRunner,
 )
-from qyro.adapters.templates.fallback import FallbackTemplateProvider
-from qyro.application.use_cases.init import InitProjectUseCase
-from qyro.application.use_cases.version import ShowVersionUseCase
+from qyro_cli.adapters.templates.fallback import FallbackTemplateProvider
+from qyro_cli.application.use_cases.init import InitProjectUseCase
+from qyro_cli.application.use_cases.version import ShowVersionUseCase
 
 
 def test_container_creates_adapters():
@@ -28,7 +27,6 @@ def test_container_creates_adapters():
     assert isinstance(container.fs, OsFileSystem)
     assert isinstance(container.settings, SettingsRepository)
     assert isinstance(container.runner, SubprocessAppRunner)
-    assert isinstance(container.installer, PipPackageInstaller)
     assert isinstance(container.modules, ImportlibModuleRegistry)
     assert isinstance(container.metadata, PackageMetadata)
 

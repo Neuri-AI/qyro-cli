@@ -2,10 +2,10 @@ from pathlib import Path
 
 import pytest
 
-from qyro.adapters.templates.bundled import BundledTemplateProvider
-from qyro.domain.errors import TemplateUnavailableError
-from qyro.domain.project import Binding, TargetPlatform
-from qyro.domain.version import Version
+from qyro_cli.adapters.templates.bundled import BundledTemplateProvider
+from qyro_cli.domain.errors import TemplateUnavailableError
+from qyro_cli.domain.project import Binding, TargetPlatform
+from qyro_cli.domain.version import Version
 
 
 class TestBundledTemplateProvider:

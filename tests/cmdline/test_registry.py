@@ -1,7 +1,7 @@
 
 import pytest
 
-from qyro.cmdline import registry
+from qyro_cli.cmdline import registry
 
 
 @pytest.fixture(autouse=True)

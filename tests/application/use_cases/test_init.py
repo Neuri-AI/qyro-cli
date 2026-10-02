@@ -5,14 +5,14 @@ from unittest.mock import Mock
 
 import pytest
 
-from qyro.application.use_cases.init import InitProjectUseCase
-from qyro.domain.errors import ProjectAlreadyExistsError
-from qyro.domain.project import (
+from qyro_cli.application.use_cases.init import InitProjectUseCase
+from qyro_cli.domain.errors import ProjectAlreadyExistsError
+from qyro_cli.domain.project import (
     AddonModule,
     Binding,
     TargetPlatform,
 )
-from qyro.domain.version import Version
+from qyro_cli.domain.version import Version
 
 
 def make_use_case():

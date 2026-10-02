@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from qyro.adapters.package.compiled_app_signer import CompiledAppSigner
-from qyro.domain.errors import MissingDependencyError, QyroError
+from qyro_cli.adapters.package.compiled_app_signer import CompiledAppSigner
+from qyro_cli.domain.errors import MissingDependencyError, QyroError
 
 
 def test_preflight_windows_requires_signtool(tmp_path, monkeypatch):

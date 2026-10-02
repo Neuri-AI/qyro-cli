@@ -1,9 +1,9 @@
 from pathlib import Path
 from unittest.mock import Mock
 
-from qyro.adapters.templates.fallback import FallbackTemplateProvider
-from qyro.domain.project import Binding, TargetPlatform
-from qyro.domain.version import Version
+from qyro_cli.adapters.templates.fallback import FallbackTemplateProvider
+from qyro_cli.domain.project import Binding, TargetPlatform
+from qyro_cli.domain.version import Version
 
 
 class TestFallbackTemplateProvider:

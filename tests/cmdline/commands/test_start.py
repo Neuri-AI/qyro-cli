@@ -1,7 +1,7 @@
 
 import argparse
 
-from qyro.cmdline.commands.start import StartCommand
+from qyro_cli.cmdline.commands.start import StartCommand
 
 
 def test_configure_does_not_add_arguments():

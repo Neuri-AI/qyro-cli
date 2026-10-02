@@ -1,8 +1,8 @@
 from pathlib import Path
 from unittest.mock import Mock
 
-from qyro.application.use_cases.bundle import BundleReleaseUseCase
-from qyro.domain.build import BundleArtifact
+from qyro_cli.application.use_cases.bundle import BundleReleaseUseCase
+from qyro_cli.domain.build import BundleArtifact
 
 
 def test_bundle_use_case_validates_and_delegates(tmp_path):
@@ -13,6 +13,7 @@ def test_bundle_use_case_validates_and_delegates(tmp_path):
 
     settings.get_optional.side_effect = lambda key, default=None: {
         "app_name": "MyApp",
+        "author": "Acme Team",
         "freeze_dir": "build",
         "version": "2.3.4",
         "bundle": {
@@ -52,6 +53,7 @@ def test_bundle_use_case_validates_and_delegates(tmp_path):
     bundler.bundle.assert_called_once_with(
         project_root=tmp_path,
         app_name="MyApp",
+        app_author="Acme Team",
         freeze_dir="build",
         release_dir="release",
         include_resources=True,
@@ -95,6 +97,7 @@ def test_bundle_use_case_uses_root_name_when_missing_app_name(tmp_path):
 
     kwargs = bundler.bundle.call_args.kwargs
     assert kwargs["app_name"] == tmp_path.name
+    assert kwargs["app_author"] == "Developer"
     assert kwargs["app_version"] == "1.0.0"
     assert kwargs["extra_files"] == []
     assert kwargs["dmg_options"] == {}

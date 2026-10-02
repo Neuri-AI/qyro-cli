@@ -1,7 +1,7 @@
 
 from unittest.mock import patch
 
-from qyro.adapters.package.metadata import PackageMetadata
+from qyro_cli.adapters.package.metadata import PackageMetadata
 
 
 @patch("qyro.adapters.package.metadata.version")

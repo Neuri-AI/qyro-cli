@@ -1,7 +1,7 @@
 import argparse
 from unittest.mock import ANY, Mock
 
-from qyro.cmdline.commands.sign import SignCommand
+from qyro_cli.cmdline.commands.sign import SignCommand
 
 
 def test_configure_defines_sign_arguments():

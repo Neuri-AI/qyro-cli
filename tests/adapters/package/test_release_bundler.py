@@ -3,8 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from qyro.adapters.package.release_bundler import ReleaseBundler
-from qyro.domain.errors import (
+from qyro_cli.adapters.package.release_bundler import ReleaseBundler
+from qyro_cli.domain.errors import (
     FrozenAppNotFoundError,
     MissingDependencyError,
     QyroError,
@@ -26,6 +26,7 @@ def test_bundle_copies_onedir_layout_and_resources(tmp_path):
     artifact = bundler.bundle(
         project_root=project_root,
         app_name="MyApp",
+        app_author="Developer",
         freeze_dir="build",
         release_dir="release",
         include_resources=True,
@@ -55,6 +56,7 @@ def test_bundle_can_create_zip_archive_for_onefile(tmp_path):
     artifact = bundler.bundle(
         project_root=project_root,
         app_name="MyApp",
+        app_author="Developer",
         freeze_dir="build",
         release_dir="release",
         include_resources=False,
@@ -81,6 +83,7 @@ def test_bundle_raises_when_freeze_output_is_missing(tmp_path):
         bundler.bundle(
             project_root=tmp_path,
             app_name="MyApp",
+            app_author="Developer",
             freeze_dir="build",
             release_dir="release",
             include_resources=False,
@@ -150,6 +153,7 @@ def test_bundle_copies_extra_files_from_release_settings(tmp_path):
     artifact = bundler.bundle(
         project_root=project_root,
         app_name="MyApp",
+        app_author="Developer",
         freeze_dir="build",
         release_dir="release",
         include_resources=False,
@@ -166,6 +170,45 @@ def test_bundle_copies_extra_files_from_release_settings(tmp_path):
 
     assert (artifact.output_dir / "README.md").exists()
     assert (artifact.output_dir / "extras" / "NOTES.txt").exists()
+
+
+def test_package_nsis_renders_external_template(tmp_path, monkeypatch):
+    release_root = tmp_path / "release"
+    output_root = release_root / "My App"
+    output_root.mkdir(parents=True)
+    (output_root / "My App.exe").write_text("binary", encoding="utf-8")
+
+    commands: list[list[str]] = []
+
+    def fake_run(command, cwd):
+        commands.append(command)
+
+    monkeypatch.setattr(
+        "shutil.which",
+        lambda name: "C:\\Program Files\\NSIS\\makensis.exe" if name == "makensis" else None,
+    )
+
+    bundler = ReleaseBundler()
+    monkeypatch.setattr(bundler, "_run", fake_run)
+
+    installer = bundler._package_nsis(
+        output_root=output_root,
+        release_root=release_root,
+        app_name="My App",
+        app_author='Team "A"',
+        app_version="2.1.0",
+    )
+
+    assert installer == release_root / "My App-2.1.0-setup.exe"
+    assert commands, "Expected makensis command"
+
+    nsi_path = output_root / "My App-installer.nsi"
+    assert nsi_path.exists()
+    content = nsi_path.read_text(encoding="utf-8")
+    assert "Name \"My App\"" in content
+    assert 'WriteRegStr SHCTX "${UNINST_KEY}" "Publisher" "Team $\\"A$\\\""' in content
+    assert "OutFile \"..\\My App-2.1.0-setup.exe\"" in content
+    assert '!define VERSION "2.1.0.0"' in content
 
 
 def test_package_dmg_applies_visual_options(tmp_path, monkeypatch):

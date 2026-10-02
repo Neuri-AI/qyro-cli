@@ -2,7 +2,7 @@
 import argparse
 from unittest.mock import Mock
 
-from qyro.cmdline.commands.clean import CleanCommand
+from qyro_cli.cmdline.commands.clean import CleanCommand
 
 
 def test_configure_does_not_add_arguments():

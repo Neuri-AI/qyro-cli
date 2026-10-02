@@ -1,7 +1,7 @@
 
 from unittest.mock import Mock
 
-from qyro.application.use_cases.version import ShowVersionUseCase
+from qyro_cli.application.use_cases.version import ShowVersionUseCase
 
 
 class TestShowVersionUseCase:

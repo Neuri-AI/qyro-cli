@@ -1,6 +1,6 @@
 import json
 
-from qyro.adapters.persistence.storage import SettingsRepository
+from qyro_cli.adapters.persistence.storage import SettingsRepository
 
 
 def test_loads_base_from_build_settings_when_settings_missing(tmp_path):

@@ -19,6 +19,7 @@
 ![GitHub stars](https://img.shields.io/github/stars/runesc/qyro)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Sponsor](https://img.shields.io/badge/Sponsor-Buy%20Me%20a%20Coffee-FFDD00?logo=buymeacoffee&logoColor=000000)](https://buymeacoffee.com/neuri)
+[![Qyro Platforms Tests](https://github.com/Neuri-AI/qyro-cli/actions/workflows/matrix.yml/badge.svg)](https://github.com/Neuri-AI/qyro-cli/actions/workflows/matrix.yml)
 
 > [!WARNING]
 > **Mobile support is a work in progress.** Every mobile-related feature described in this document (Buildozer packaging, the `[mobile]` extra, Android/iOS targets, Kivy on mobile) is **not finished yet**. For now, Qyro CLI **only works for desktop** (Windows, macOS and Linux).

@@ -162,6 +162,36 @@ You can preselect a binding and template version:
 qyro init --name my-app --binding PySide6 --template-version 1.0.x
 ```
 
+You can also initialize a project without opening the interactive setup menu:
+
+```bash
+qyro init \
+  --name my-app \
+  --target-platform desktop \
+  --binding PySide6 \
+  --app-name "My App" \
+  --version 1.0.0 \
+  --author "Your Name" \
+  --addon pydux \
+  --addon requests \
+  --yes
+```
+
+Non-interactive init flags:
+
+- `--target-platform`: `desktop`, `x86_64`, `apple-silicon`, `iphone`, `android`
+- `--app-name`: application display name
+- `--version`: semantic app version
+- `--author`: author name
+- `--addon`: optional dependency addon (repeatable). Values: `hotrl`, `pydux`, `sentry-sdk`, `requests`
+- `--bundle-id`: bundle identifier for iPhone / Apple Silicon templates
+- `-y, --yes`: skip confirmation prompt
+
+Notes:
+
+- `desktop` maps to `x86_64`.
+- If these flags are omitted, `qyro init` keeps the interactive wizard behavior.
+
 Supported `--binding` values:
 
 - `PySide6`

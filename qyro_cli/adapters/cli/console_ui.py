@@ -42,6 +42,27 @@ class RichConsoleUI:
             theme=custom_theme,
         )
 
+    def _ascii_fallback(self, message: str) -> str:
+        safe = (
+            message
+            .replace("⏳", "...")
+            .replace("💔", "Error")
+            .replace("🚀", "*")
+            .replace("✓", "OK")
+            .replace("⚠️", "WARN")
+            .replace("⚠", "WARN")
+        )
+        return safe.encode("ascii", errors="replace").decode("ascii")
+
+    def _print(self, renderable: object) -> None:
+        try:
+            self._console.print(renderable)
+        except UnicodeEncodeError:
+            if isinstance(renderable, str):
+                self._console.print(self._ascii_fallback(renderable))
+                return
+            raise
+
     def welcome(self) -> None:
         messages = [
             "What are we building today?",
@@ -180,24 +201,24 @@ class RichConsoleUI:
         )
 
     def info(self, message: str) -> None:
-        self._console.print(message)
+        self._print(message)
 
     def success(self, message: str) -> None:
-        self._console.print(
+        self._print(
             f"[bold #fff]{message}[/bold #fff]"
         )
 
     def warning(self, message: str) -> None:
-        self._console.print(
+        self._print(
             f"[#fdba74]{message}[/#fdba74]"
         )
 
     def progress(self, message: str) -> None:
-        self._console.print(
+        self._print(
             f"[#fdba74]⏳ {message}[/#fdba74]"
         )
 
     def error(self, message: str) -> None:
-        self._console.print(
+        self._print(
             f"\n💔 [bold red]Error:[/bold red] {message}"
         )

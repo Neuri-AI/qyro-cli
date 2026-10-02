@@ -146,10 +146,8 @@ class SettingsRepository:
 
     def _detect_base_settings_path(self) -> Path:
         settings_base = self._root / BASE_SETTINGS
-
-        if not settings_base.exists():
-            raise MissingSettingError(str(settings_base))
-
+        # In non-project directories (e.g. before `qyro init`), the file may
+        # not exist yet. Keep the canonical target path and allow lazy creation.
         return settings_base
 
     def _settings_dirs(self) -> list[Path]:

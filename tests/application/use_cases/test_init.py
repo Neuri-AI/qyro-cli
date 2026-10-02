@@ -261,3 +261,81 @@ class TestInitProjectUseCase:
 
         ui.confirm.assert_not_called()
         templates.resolve_template.assert_not_called()
+
+    def test_execute_non_interactive_uses_cli_flags(self, tmp_path):
+        use_case, ui, fs, dependencies, templates, _settings = make_use_case()
+
+        templates.resolve_template.return_value = Path("/templates/pyside6")
+        fs.exists.return_value = False
+
+        use_case.execute(
+            target_dir=str(tmp_path),
+            default_binding="PySide6",
+            target_platform="desktop",
+            app_name="My App",
+            app_version="2.0.0",
+            author="Jane",
+            addons=["pydux", "requests"],
+            confirm=True,
+        )
+
+        ui.welcome.assert_not_called()
+        ui.ask_choice.assert_not_called()
+        ui.ask_text.assert_not_called()
+        ui.ask_multi_choice.assert_not_called()
+        ui.confirm.assert_not_called()
+
+        templates.resolve_template.assert_called_once_with(
+            binding=Binding.PYSIDE6,
+            target_platform=TargetPlatform.X86_64,
+            version=None,
+        )
+
+        fs.render_tree.assert_called_once()
+        variables = fs.render_tree.call_args.args[1]
+        assert variables["app_name"] == "My App"
+        assert variables["version"] == "2.0.0"
+        assert variables["author"] == "Jane"
+        assert variables["addons"] == ["pydux", "requests"]
+        dependencies.install.assert_called_once_with(str(tmp_path.resolve()))
+
+    def test_execute_non_interactive_apple_silicon_bundle_id(self, tmp_path):
+        use_case, ui, fs, _dependencies, templates, _settings = make_use_case()
+
+        templates.resolve_template.return_value = Path("/templates/pyside6")
+        fs.exists.return_value = False
+
+        use_case.execute(
+            target_dir=str(tmp_path),
+            default_binding="PySide6",
+            target_platform="apple-silicon",
+            app_name="MyApp",
+            app_version="1.0.0",
+            author="Jane",
+            addons=[],
+            bundle_id="com.example.myapp",
+            confirm=True,
+        )
+
+        summary = ui.show_summary.call_args.args[1]
+        assert summary["Mac bundle identifier"] == "com.example.myapp"
+
+    def test_execute_non_interactive_without_addons_skips_prompt(self, tmp_path):
+        use_case, ui, fs, _dependencies, templates, _settings = make_use_case()
+
+        templates.resolve_template.return_value = Path("/templates/pyside6")
+        fs.exists.return_value = False
+
+        use_case.execute(
+            target_dir=str(tmp_path),
+            default_binding="PySide6",
+            target_platform="desktop",
+            app_name="MyApp",
+            app_version="1.0.0",
+            author="Jane",
+            confirm=True,
+        )
+
+        ui.ask_multi_choice.assert_not_called()
+        variables = fs.render_tree.call_args.args[1]
+        assert variables["addons"] == []

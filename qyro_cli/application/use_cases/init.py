@@ -42,6 +42,13 @@ class InitProjectUseCase:
         target_dir: str = ".",
         default_binding: str | None = None,
         template_version: str | None = None,
+        target_platform: str | None = None,
+        app_name: str | None = None,
+        app_version: str | None = None,
+        author: str | None = None,
+        addons: list[str] | None = None,
+        bundle_id: str | None = None,
+        confirm: bool | None = None,
     ) -> None:
         destination = Path(target_dir).resolve()
         src_path = destination / "main.py"
@@ -49,7 +56,21 @@ class InitProjectUseCase:
         if self.fs.exists(str(src_path)):
             raise ProjectAlreadyExistsError(str(destination))
 
-        self.ui.welcome()
+        interactive = all(
+            value is None
+            for value in (
+                target_platform,
+                app_name,
+                app_version,
+                author,
+                addons,
+                bundle_id,
+                confirm,
+            )
+        )
+
+        if interactive:
+            self.ui.welcome()
 
         platform_options = {
             "iPhone": TargetPlatform.IPHONE,
@@ -58,18 +79,36 @@ class InitProjectUseCase:
             "Desktop (Apple Silicon)": TargetPlatform.APPLE_SILICON,
         }
 
-        platform_str = self.ui.ask_choice(
-            "Select target platform",
-            list(platform_options),
-            default="Desktop (x86_64)",
-        )
-
-        target_platform = platform_options[platform_str]
+        if target_platform:
+            normalized_platform = target_platform.strip().lower().replace("_", "-")
+            platform_aliases = {
+                "desktop": TargetPlatform.X86_64,
+                "x86": TargetPlatform.X86_64,
+                "x86-64": TargetPlatform.X86_64,
+                "x86_64": TargetPlatform.X86_64,
+                "apple-silicon": TargetPlatform.APPLE_SILICON,
+                "apple silicon": TargetPlatform.APPLE_SILICON,
+                "iphone": TargetPlatform.IPHONE,
+                "android": TargetPlatform.ANDROID,
+            }
+            selected_platform = platform_aliases.get(normalized_platform)
+            if selected_platform is None:
+                raise ValueError(
+                    "Invalid target platform. Supported values: "
+                    "desktop, x86_64, apple-silicon, iphone, android."
+                )
+        else:
+            platform_str = self.ui.ask_choice(
+                "Select target platform",
+                list(platform_options),
+                default="Desktop (x86_64)",
+            )
+            selected_platform = platform_options[platform_str]
 
         available_bindings = [
             binding
             for binding in Binding
-            if binding.supports(target_platform)
+            if binding.supports(selected_platform)
         ]
 
         if default_binding:
@@ -78,7 +117,7 @@ class InitProjectUseCase:
             if binding not in available_bindings:
                 raise ValueError(
                     f"Binding '{binding.value}' is not available "
-                    f"for {target_platform.value}."
+                    f"for {selected_platform.value}."
                 )
         else:
             binding_str = self.ui.ask_choice(
@@ -89,18 +128,18 @@ class InitProjectUseCase:
             binding = Binding.parse(binding_str)
 
         default_app = destination.name if target_dir != "." else "MyApp"
-        app_name = self.ui.ask_text(
+        app_name_value = app_name or self.ui.ask_text(
             "App name",
             default=default_app,
         )
 
-        version_str = self.ui.ask_text(
+        version_str = app_version or self.ui.ask_text(
             "Version",
             default="1.0.0",
         )
         version = Version.parse(version_str)
 
-        author = self.ui.ask_text(
+        author_value = author or self.ui.ask_text(
             "Author",
             default=self.fs.current_user(),
         )
@@ -112,7 +151,7 @@ class InitProjectUseCase:
             "Requests (HTTP Library)": AddonModule.REQUESTS,
         }
 
-        if target_platform in (
+        if selected_platform in (
             TargetPlatform.IPHONE,
             TargetPlatform.ANDROID,
         ):
@@ -120,54 +159,66 @@ class InitProjectUseCase:
                 "Pydux (Redux-style State Management)": AddonModule.PYDUX,
             }
 
-        selected_addons_raw = self.ui.ask_multi_choice(
-            "Select optional add-ons to configure:",
-            list(addon_options),
-        )
+        if addons is None:
+            if interactive:
+                selected_addons_raw = self.ui.ask_multi_choice(
+                    "Select optional add-ons to configure:",
+                    list(addon_options),
+                )
 
-        addons = [
-            addon_options[option]
-            for option in selected_addons_raw
-            if option in addon_options
-        ]
+                selected_addons = [
+                    addon_options[option]
+                    for option in selected_addons_raw
+                    if option in addon_options
+                ]
+            else:
+                selected_addons = []
+        else:
+            allowed = {addon.value: addon for addon in addon_options.values()}
+            selected_addons = [
+                allowed[value]
+                for value in addons
+                if value in allowed
+            ]
 
-        bundle_id = None
+        bundle_identifier = bundle_id
 
-        if target_platform in (
+        if selected_platform in (
             TargetPlatform.IPHONE,
             TargetPlatform.APPLE_SILICON,
         ):
             bundle_default = (
-                f"com.{author.lower().split()[0]}."
-                f"{''.join(app_name.lower().split())}"
+                f"com.{author_value.lower().split()[0]}."
+                f"{''.join(app_name_value.lower().split())}"
             )
 
             label = (
                 "iOS bundle identifier"
-                if target_platform == TargetPlatform.IPHONE
+                if selected_platform == TargetPlatform.IPHONE
                 else f"Mac bundle identifier (e.g. {bundle_default}, optional)"
             )
 
-            bundle_id = self.ui.ask_text(
-                label,
-                default=bundle_default,
-                show_default=target_platform == TargetPlatform.IPHONE,
-            )
+            if bundle_identifier is None:
+                bundle_identifier = self.ui.ask_text(
+                    label,
+                    default=bundle_default,
+                    show_default=selected_platform == TargetPlatform.IPHONE,
+                )
 
             if (
-                target_platform == TargetPlatform.APPLE_SILICON
-                and not bundle_id.strip()
+                selected_platform == TargetPlatform.APPLE_SILICON
+                and not bundle_identifier.strip()
             ):
-                bundle_id = None
+                bundle_identifier = None
 
         config = ProjectConfig(
-            app_name=app_name,
+            app_name=app_name_value,
             version=version,
-            author=author,
+            author=author_value,
             binding=binding,
-            target_platform=target_platform,
-            mac_bundle_identifier=bundle_id or None,
-            addons=addons,
+            target_platform=selected_platform,
+            mac_bundle_identifier=bundle_identifier or None,
+            addons=selected_addons,
         )
 
         self.ui.show_summary(
@@ -175,9 +226,12 @@ class InitProjectUseCase:
             config.as_display_dict(),
         )
 
-        if not self.ui.confirm(
-            "Create project with these settings?"
-        ):
+        should_continue = (
+            confirm
+            if confirm is not None
+            else self.ui.confirm("Create project with these settings?")
+        )
+        if not should_continue:
             self.ui.info("Operation aborted by user.")
             return
 

@@ -1,6 +1,7 @@
 !include MUI2.nsh
 !include FileFunc.nsh
 ${mui_icon_block}!define VERSION "${installer_version}"
+${welcome_bitmap_block}
 
 VIProductVersion "${VERSION}"
 VIAddVersionKey "ProductName" "${app_name}"
@@ -12,7 +13,7 @@ VIAddVersionKey "FileDescription" "${app_name}"
 ;--------------------------------
 ;Perform Machine-level install, if possible
 
-!define MULTIUSER_EXECUTIONLEVEL Highest
+!define MULTIUSER_EXECUTIONLEVEL ${execution_level}
 ;Add support for command-line args that let uninstaller know whether to
 ;uninstall machine- or user installation:
 !define MULTIUSER_INSTALLMODE_COMMANDLINE
@@ -23,11 +24,7 @@ Function .onInit
   !insertmacro MULTIUSER_INIT
   ;Do not use InstallDir at all so we can detect empty $InstDir!
   ${If} $InstDir == "" ; /D not used
-      ${If} $MultiUser.InstallMode == "AllUsers"
-          StrCpy $InstDir "$PROGRAMFILES\${app_name}"
-      ${Else}
-          StrCpy $InstDir "$LOCALAPPDATA\${app_name}"
-      ${EndIf}
+    StrCpy $InstDir "${install_base_dir}\${app_name}"
   ${EndIf}
 FunctionEnd
 
@@ -51,6 +48,10 @@ FunctionEnd
 
   !define MUI_WELCOMEPAGE_TEXT "This wizard will guide you through the installation of ${app_name}.$\r$\n$\r$\n$\r$\nClick Next to continue."
   !insertmacro MUI_PAGE_WELCOME
+  
+  ; NUEVO: Agregamos la página de componentes para mostrar las opciones
+  !insertmacro MUI_PAGE_COMPONENTS 
+  
   !insertmacro MUI_PAGE_DIRECTORY
   !insertmacro MUI_PAGE_INSTFILES
     !define MUI_FINISHPAGE_NOAUTOCLOSE
@@ -67,15 +68,34 @@ FunctionEnd
 ;Languages
 
   !insertmacro MUI_LANGUAGE "English"
+  !insertmacro MUI_LANGUAGE "German"
+  !insertmacro MUI_LANGUAGE "French"
+  !insertmacro MUI_LANGUAGE "Spanish"
+  !insertmacro MUI_LANGUAGE "Italian"
+  !insertmacro MUI_LANGUAGE "Portuguese"
+  !insertmacro MUI_LANGUAGE "Dutch"
+  !insertmacro MUI_LANGUAGE "Danish"
+  !insertmacro MUI_LANGUAGE "Swedish"
+  !insertmacro MUI_LANGUAGE "Norwegian"
+  !insertmacro MUI_LANGUAGE "Finnish"
+  !insertmacro MUI_LANGUAGE "Polish"
+  !insertmacro MUI_LANGUAGE "Czech"
+  !insertmacro MUI_LANGUAGE "Hungarian"
+  !insertmacro MUI_LANGUAGE "Romanian"
+  !insertmacro MUI_LANGUAGE "Ukrainian"
 
 ;--------------------------------
 ;Installer Sections
 
 !define UNINST_KEY \
   "Software\Microsoft\Windows\CurrentVersion\Uninstall\${app_name}"
-Section
+
+; Modificamos la sección principal para darle un nombre e identificador (SecMain)
+Section "!${app_name} (Required)" SecMain
+  SectionIn RO ; "RO" significa Read Only, el usuario no puede desmarcar esta opción
+
   SetOutPath "$InstDir"
-  File /r "..\${app_name}\*"
+  File /r /x ${app_name}-installer.nsi /x README.md /x install.ico /x uninstall.ico ..\${app_name}\*
   WriteRegStr SHCTX "Software\${app_name}" "" $InstDir
   WriteUninstaller "$InstDir\uninstall.exe"
   CreateShortCut "$SMPROGRAMS\${app_name}.lnk" "$InstDir\${app_name}.exe"
@@ -92,6 +112,17 @@ Section
 
 SectionEnd
 
+; NUEVO: Sección opcional para el acceso directo en el escritorio
+Section "Desktop Shortcut" SecDesktop
+  CreateShortCut "$DESKTOP\${app_name}.lnk" "$InstDir\${app_name}.exe"
+SectionEnd
+
+; NUEVO: Descripciones que aparecen al hacer clic en las opciones de la página de componentes
+!insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecMain} "Installs the core files for ${app_name}."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecDesktop} "Creates a shortcut for ${app_name} on your desktop."
+!insertmacro MUI_FUNCTION_DESCRIPTION_END
+
 ;--------------------------------
 ;Uninstaller Section
 
@@ -99,6 +130,9 @@ Section "Uninstall"
 
   RMDir /r "$InstDir"
   Delete "$SMPROGRAMS\${app_name}.lnk"
+
+  Delete "$DESKTOP\${app_name}.lnk" 
+
   DeleteRegKey /ifempty SHCTX "Software\${app_name}"
   DeleteRegKey SHCTX "${UNINST_KEY}"
 

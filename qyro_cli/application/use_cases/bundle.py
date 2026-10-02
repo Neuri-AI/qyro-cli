@@ -35,7 +35,7 @@ class BundleReleaseUseCase:
         package_format: str = "auto",
         target_platform: str = "auto",
     ) -> BundleArtifact:
-        root, app_name, app_author, freeze_dir, app_version, extra_files, dmg_options = self._prepare_bundle_context(
+        root, app_name, app_author, freeze_dir, app_version, extra_files, dmg_options, nsis_options = self._prepare_bundle_context(
             project_root=project_root,
         )
 
@@ -56,6 +56,7 @@ class BundleReleaseUseCase:
             app_version=app_version,
             extra_files=extra_files,
             dmg_options=dmg_options,
+            nsis_options=nsis_options,
         )
 
         self._ui.success("\nBundle created successfully.")
@@ -76,7 +77,7 @@ class BundleReleaseUseCase:
         package_format: str = "auto",
         target_platform: str = "auto",
     ) -> None:
-        root, app_name, _app_author, freeze_dir, _app_version, extra_files, dmg_options = self._prepare_bundle_context(
+        root, app_name, _app_author, freeze_dir, _app_version, extra_files, dmg_options, nsis_options = self._prepare_bundle_context(
             project_root=project_root,
         )
 
@@ -89,6 +90,7 @@ class BundleReleaseUseCase:
             target_platform=target_platform,
             extra_files=extra_files,
             dmg_options=dmg_options,
+            nsis_options=nsis_options,
         )
         self._ui.success("\nBundle preflight checks passed.")
 
@@ -96,7 +98,7 @@ class BundleReleaseUseCase:
         self,
         *,
         project_root: Path | None,
-    ) -> tuple[Path, str, str, str, str, list[object], dict[str, object]]:
+    ) -> tuple[Path, str, str, str, str, list[object], dict[str, object], dict[str, object]]:
         root = (project_root or Path.cwd()).resolve()
 
         if hasattr(self._settings, "activate_profile"):
@@ -121,4 +123,8 @@ class BundleReleaseUseCase:
         if not isinstance(dmg_options, dict):
             dmg_options = {}
 
-        return root, app_name, app_author, freeze_dir, app_version, extra_files, dmg_options
+        nsis_options = bundle_settings.get("nsis", {})
+        if not isinstance(nsis_options, dict):
+            nsis_options = {}
+
+        return root, app_name, app_author, freeze_dir, app_version, extra_files, dmg_options, nsis_options

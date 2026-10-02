@@ -162,6 +162,48 @@ qyro bundle --check
 
 This validates dependencies and `release` settings (like DMG background and extra files) without generating artifacts.
 
+### Windows NSIS customization (`settings/release.json`)
+
+When packaging with `qyro bundle --platform windows --format nsis`, you can customize installer behavior using `bundle.nsis` in `settings/release.json`.
+
+Supported options:
+
+- `bundle.nsis.icons.install`: Path to installer icon (`.ico`).
+- `bundle.nsis.icons.uninstall`: Path to uninstaller icon (`.ico`).
+- `bundle.nsis.welcome_bitmap`: Path to welcome/finish bitmap image used by NSIS Modern UI.
+- `bundle.nsis.install_location`: Base install location. Allowed values: `programfiles64` -> `$PROGRAMFILES64`, `programfiles32` -> `$PROGRAMFILES32`, `appdata` -> `$LOCALAPPDATA`.
+- `bundle.nsis.execution_level`: Installer privilege level. Allowed values: `highest`, `admin`, `user`.
+
+Defaults:
+
+- `install_location`: `programfiles64`
+- `execution_level`: `highest`
+- `icons.install`: `resources/base/icons/install.ico` (used if file exists)
+- `icons.uninstall`: `resources/base/icons/uninstall.ico` (used if file exists)
+- `welcome_bitmap`: not set by default
+
+Example:
+
+```json
+{
+  "bundle": {
+    "nsis": {
+      "icons": {
+        "install": "resources/base/icons/install.ico",
+        "uninstall": "resources/base/icons/uninstall.ico"
+      },
+      "welcome_bitmap": "resources/base/welcome.bmp",
+      "install_location": "programfiles64",
+      "execution_level": "highest"
+    }
+  }
+}
+```
+
+Tip:
+
+- Run `qyro bundle --check --platform windows --format nsis` to validate NSIS option values and file paths before generating artifacts.
+
 ### Clean outputs
 
 ```bash

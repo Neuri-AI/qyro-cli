@@ -36,6 +36,7 @@ class ReleaseBundler(BundlePort):
         target_platform: str,
         extra_files: list[object],
         dmg_options: dict[str, object],
+        nsis_options: dict[str, object],
     ) -> None:
         freeze_root = project_root / freeze_dir
         if not freeze_root.exists():
@@ -65,6 +66,10 @@ class ReleaseBundler(BundlePort):
                 raise UnsupportedOperationError("bundle:nsis", platform_name)
             if shutil.which("makensis") is None:
                 raise MissingDependencyError("makensis")
+            self._validate_nsis_requirements(
+                project_root=project_root,
+                nsis_options=nsis_options,
+            )
             return
 
         if resolved_format in ("deb", "rpm", "arch"):
@@ -89,6 +94,7 @@ class ReleaseBundler(BundlePort):
         app_version: str,
         extra_files: list[object],
         dmg_options: dict[str, object],
+        nsis_options: dict[str, object],
     ) -> BundleArtifact:
         freeze_root = project_root / freeze_dir
         if not freeze_root.exists():
@@ -153,6 +159,7 @@ class ReleaseBundler(BundlePort):
                 package_format=resolved_format,
                 project_root=project_root,
                 dmg_options=dmg_options,
+                nsis_options=nsis_options,
             )
 
         return BundleArtifact(
@@ -222,6 +229,7 @@ class ReleaseBundler(BundlePort):
         package_format: str,
         project_root: Path,
         dmg_options: dict[str, object],
+        nsis_options: dict[str, object],
     ) -> Path:
         if package_format == "zip":
             archive_base = release_root / f"{app_name}-{app_version}"
@@ -256,6 +264,8 @@ class ReleaseBundler(BundlePort):
                 app_name,
                 app_author,
                 app_version,
+                project_root=project_root,
+                nsis_options=nsis_options,
             )
 
         if package_format in ("deb", "rpm", "arch"):
@@ -590,9 +600,17 @@ class ReleaseBundler(BundlePort):
         app_name: str,
         app_author: str,
         app_version: str,
+        *,
+        project_root: Path,
+        nsis_options: dict[str, object],
     ) -> Path:
         if shutil.which("makensis") is None:
             raise MissingDependencyError("makensis")
+
+        resolved_nsis = self._resolve_nsis_options(
+            project_root=project_root,
+            nsis_options=nsis_options,
+        )
 
         installer_path = release_root / f"{app_name}-{app_version}-setup.exe"
         nsi_path = output_root / f"{app_name}-installer.nsi"
@@ -601,7 +619,11 @@ class ReleaseBundler(BundlePort):
             author=app_author,
             installer=installer_path.name,
             installer_version=self._to_nsis_version(app_version),
-            output_root=output_root,
+            install_icon=resolved_nsis["install_icon"],
+            uninstall_icon=resolved_nsis["uninstall_icon"],
+            welcome_bitmap=resolved_nsis["welcome_bitmap"],
+            install_base_dir=resolved_nsis["install_base_dir"],
+            execution_level=resolved_nsis["execution_level"],
         )
 
         nsi_path.write_text(nsi_content, encoding="utf-8")
@@ -615,16 +637,32 @@ class ReleaseBundler(BundlePort):
         author: str,
         installer: str,
         installer_version: str,
-        output_root: Path,
+        install_icon: Path | None,
+        uninstall_icon: Path | None,
+        welcome_bitmap: Path | None,
+        install_base_dir: str,
+        execution_level: str,
     ) -> str:
         template = self._NSIS_TEMPLATE_PATH.read_text(encoding="utf-8")
 
-        icon_path = output_root / "Icon.ico"
         icon_block = ""
-        if icon_path.exists():
-            icon_block = (
-                '!define MUI_ICON "..\\${app_name}\\Icon.ico"\n'
-                '!define MUI_UNICON "..\\${app_name}\\Icon.ico"\n\n'
+        if install_icon is not None:
+            icon_block += (
+                '!define MUI_ICON "' + self._escape_nsis_string(self._to_windows_path(install_icon)) + '"\n'
+            )
+        if uninstall_icon is not None:
+            icon_block += (
+                '!define MUI_UNICON "' + self._escape_nsis_string(self._to_windows_path(uninstall_icon)) + '"\n'
+            )
+        if icon_block:
+            icon_block += "\n"
+
+        welcome_bitmap_block = ""
+        if welcome_bitmap is not None:
+            welcome_bitmap_block = (
+                '!define MUI_WELCOMEFINISHPAGE_BITMAP "'
+                + self._escape_nsis_string(self._to_windows_path(welcome_bitmap))
+                + '"\n'
             )
 
         replacements = {
@@ -633,6 +671,9 @@ class ReleaseBundler(BundlePort):
             "${installer}": self._escape_nsis_string(installer),
             "${installer_version}": installer_version,
             "${mui_icon_block}": icon_block,
+            "${welcome_bitmap_block}": welcome_bitmap_block,
+            "${install_base_dir}": install_base_dir,
+            "${execution_level}": execution_level,
         }
 
         rendered = template
@@ -654,6 +695,74 @@ class ReleaseBundler(BundlePort):
 
         capped = [min(part, 65535) for part in normalized]
         return ".".join(str(part) for part in capped)
+
+    def _to_windows_path(self, path: Path) -> str:
+        return str(path.resolve()).replace("/", "\\")
+
+    def _resolve_nsis_options(
+        self,
+        *,
+        project_root: Path,
+        nsis_options: dict[str, object],
+    ) -> dict[str, object]:
+        options = nsis_options if isinstance(nsis_options, dict) else {}
+
+        icons_raw = options.get("icons")
+        icons = icons_raw if isinstance(icons_raw, dict) else {}
+
+        install_icon_path = self._resolve_optional_path(
+            icons.get("install") if "install" in icons else "resources/base/install.ico",
+            project_root,
+            required="install" in icons,
+        )
+        uninstall_icon_path = self._resolve_optional_path(
+            icons.get("uninstall") if "uninstall" in icons else "resources/base/uninstall.ico",
+            project_root,
+            required="uninstall" in icons,
+        )
+        welcome_bitmap_path = self._resolve_optional_path(
+            options.get("welcome_bitmap"),
+            project_root,
+            required="welcome_bitmap" in options,
+        )
+
+        install_location = str(options.get("install_location", "programfiles64")).lower()
+        install_base_map = {
+            "programfiles64": "$PROGRAMFILES64",
+            "programfiles32": "$PROGRAMFILES32",
+            "appdata": "$LOCALAPPDATA",
+        }
+        install_base_dir = install_base_map.get(install_location)
+        if install_base_dir is None:
+            raise ValueError(
+                "Invalid bundle.nsis.install_location. Use one of: "
+                "programfiles64, programfiles32, appdata"
+            )
+
+        execution_level = str(options.get("execution_level", "highest")).lower()
+        if execution_level not in ("highest", "admin", "user"):
+            raise ValueError(
+                "Invalid bundle.nsis.execution_level. Use one of: highest, admin, user"
+            )
+
+        return {
+            "install_icon": install_icon_path,
+            "uninstall_icon": uninstall_icon_path,
+            "welcome_bitmap": welcome_bitmap_path,
+            "install_base_dir": install_base_dir,
+            "execution_level": execution_level,
+        }
+
+    def _validate_nsis_requirements(
+        self,
+        *,
+        project_root: Path,
+        nsis_options: dict[str, object],
+    ) -> None:
+        self._resolve_nsis_options(
+            project_root=project_root,
+            nsis_options=nsis_options,
+        )
 
     def _package_linux_fpm(
         self,

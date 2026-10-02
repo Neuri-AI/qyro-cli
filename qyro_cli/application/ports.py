@@ -301,6 +301,7 @@ class BundlePort(Protocol):
         target_platform: str,
         extra_files: list[object],
         dmg_options: dict[str, object],
+        nsis_options: dict[str, object],
     ) -> None: ...
 
     def bundle(
@@ -318,6 +319,7 @@ class BundlePort(Protocol):
         app_version: str,
         extra_files: list[object],
         dmg_options: dict[str, object],
+        nsis_options: dict[str, object],
     ) -> BundleArtifact: ...
 
 

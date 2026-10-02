@@ -36,6 +36,7 @@ def test_bundle_copies_onedir_layout_and_resources(tmp_path):
         app_version="1.0.0",
         extra_files=[],
         dmg_options={},
+        nsis_options={},
     )
 
     assert artifact.output_dir == project_root / "release" / "MyApp"
@@ -66,6 +67,7 @@ def test_bundle_can_create_zip_archive_for_onefile(tmp_path):
         app_version="1.0.0",
         extra_files=[],
         dmg_options={},
+        nsis_options={},
     )
 
     assert artifact.archive_path is not None
@@ -93,6 +95,7 @@ def test_bundle_raises_when_freeze_output_is_missing(tmp_path):
             app_version="1.0.0",
             extra_files=[],
             dmg_options={},
+            nsis_options={},
         )
 
 
@@ -166,6 +169,7 @@ def test_bundle_copies_extra_files_from_release_settings(tmp_path):
             {"source": "docs/NOTES.txt", "destination": "extras/NOTES.txt"},
         ],
         dmg_options={},
+        nsis_options={},
     )
 
     assert (artifact.output_dir / "README.md").exists()
@@ -177,6 +181,13 @@ def test_package_nsis_renders_external_template(tmp_path, monkeypatch):
     output_root = release_root / "My App"
     output_root.mkdir(parents=True)
     (output_root / "My App.exe").write_text("binary", encoding="utf-8")
+    install_icon = tmp_path / "resources" / "base" / "install.ico"
+    uninstall_icon = tmp_path / "resources" / "base" / "uninstall.ico"
+    welcome_bitmap = tmp_path / "resources" / "base" / "welcome.bmp"
+    install_icon.parent.mkdir(parents=True)
+    install_icon.write_text("ico", encoding="utf-8")
+    uninstall_icon.write_text("ico", encoding="utf-8")
+    welcome_bitmap.write_text("bmp", encoding="utf-8")
 
     commands: list[list[str]] = []
 
@@ -197,6 +208,16 @@ def test_package_nsis_renders_external_template(tmp_path, monkeypatch):
         app_name="My App",
         app_author='Team "A"',
         app_version="2.1.0",
+        project_root=tmp_path,
+        nsis_options={
+            "icons": {
+                "install": "resources/base/install.ico",
+                "uninstall": "resources/base/uninstall.ico",
+            },
+            "welcome_bitmap": "resources/base/welcome.bmp",
+            "install_location": "appdata",
+            "execution_level": "admin",
+        },
     )
 
     assert installer == release_root / "My App-2.1.0-setup.exe"
@@ -209,6 +230,12 @@ def test_package_nsis_renders_external_template(tmp_path, monkeypatch):
     assert 'WriteRegStr SHCTX "${UNINST_KEY}" "Publisher" "Team $\\"A$\\\""' in content
     assert "OutFile \"..\\My App-2.1.0-setup.exe\"" in content
     assert '!define VERSION "2.1.0.0"' in content
+    assert 'File /r /x "My App-installer.nsi" /x "README.md" "..\\My App\\*"' in content
+    assert '!define MUI_ICON "' in content
+    assert '!define MUI_UNICON "' in content
+    assert '!define MUI_WELCOMEFINISHPAGE_BITMAP "' in content
+    assert "!define MULTIUSER_EXECUTIONLEVEL admin" in content
+    assert 'StrCpy $InstDir "$LOCALAPPDATA\\My App"' in content
 
 
 def test_package_dmg_applies_visual_options(tmp_path, monkeypatch):
@@ -327,6 +354,7 @@ def test_preflight_fails_when_extra_file_missing(tmp_path):
             target_platform="linux",
             extra_files=["docs/RELEASE_NOTES.md"],
             dmg_options={},
+            nsis_options={},
         )
 
 
@@ -348,4 +376,57 @@ def test_preflight_fails_when_dmg_customized_without_create_dmg(tmp_path, monkey
             target_platform="mac",
             extra_files=[],
             dmg_options={"icon_size": 120},
+            nsis_options={},
+        )
+
+
+def test_preflight_fails_when_nsis_option_path_is_missing(tmp_path, monkeypatch):
+    build_dir = tmp_path / "build"
+    build_dir.mkdir(parents=True)
+    (build_dir / "MyApp.exe").write_text("binary", encoding="utf-8")
+
+    monkeypatch.setattr(
+        "shutil.which",
+        lambda name: "C:\\Program Files\\NSIS\\makensis.exe" if name == "makensis" else None,
+    )
+
+    bundler = ReleaseBundler()
+    with pytest.raises(FileNotFoundError):
+        bundler.preflight(
+            project_root=tmp_path,
+            app_name="MyApp",
+            freeze_dir="build",
+            package_format="nsis",
+            target_platform="windows",
+            extra_files=[],
+            dmg_options={},
+            nsis_options={
+                "icons": {
+                    "install": "resources/base/missing-install.ico",
+                }
+            },
+        )
+
+
+def test_preflight_fails_when_nsis_option_values_are_invalid(tmp_path, monkeypatch):
+    build_dir = tmp_path / "build"
+    build_dir.mkdir(parents=True)
+    (build_dir / "MyApp.exe").write_text("binary", encoding="utf-8")
+
+    monkeypatch.setattr(
+        "shutil.which",
+        lambda name: "C:\\Program Files\\NSIS\\makensis.exe" if name == "makensis" else None,
+    )
+
+    bundler = ReleaseBundler()
+    with pytest.raises(ValueError):
+        bundler.preflight(
+            project_root=tmp_path,
+            app_name="MyApp",
+            freeze_dir="build",
+            package_format="nsis",
+            target_platform="windows",
+            extra_files=[],
+            dmg_options={},
+            nsis_options={"install_location": "system32"},
         )

@@ -19,6 +19,7 @@ def test_bundle_use_case_validates_and_delegates(tmp_path):
         "bundle": {
             "extra_files": ["README.md"],
             "dmg": {"icon_size": 140},
+            "nsis": {"execution_level": "admin"},
         },
     }.get(key, default)
 
@@ -63,6 +64,7 @@ def test_bundle_use_case_validates_and_delegates(tmp_path):
         app_version="2.3.4",
         extra_files=["README.md"],
         dmg_options={"icon_size": 140},
+        nsis_options={"execution_level": "admin"},
     )
     settings.activate_profile.assert_called_once_with("release")
     ui.progress.assert_called_once()
@@ -101,6 +103,7 @@ def test_bundle_use_case_uses_root_name_when_missing_app_name(tmp_path):
     assert kwargs["app_version"] == "1.0.0"
     assert kwargs["extra_files"] == []
     assert kwargs["dmg_options"] == {}
+    assert kwargs["nsis_options"] == {}
 
 
 def test_bundle_use_case_check_runs_preflight(tmp_path):
@@ -116,6 +119,7 @@ def test_bundle_use_case_check_runs_preflight(tmp_path):
         "bundle": {
             "extra_files": ["README.md"],
             "dmg": {"icon_size": 120},
+            "nsis": {"install_location": "appdata"},
         },
     }.get(key, default)
 
@@ -140,6 +144,7 @@ def test_bundle_use_case_check_runs_preflight(tmp_path):
         target_platform="mac",
         extra_files=["README.md"],
         dmg_options={"icon_size": 120},
+        nsis_options={"install_location": "appdata"},
     )
     bundler.bundle.assert_not_called()
     ui.success.assert_called_once()

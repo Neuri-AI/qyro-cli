@@ -1,0 +1,135 @@
+name: Qyro Matrix Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: matrix-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash -el {0}
+
+env:
+  PYTHONUTF8: "1"
+  PYTHONIOENCODING: utf-8
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  CACHE_VERSION: "1"                    # This value should be incremented to invalidate all caches
+  CONDA_PKGS_DIRS: ~/conda_pkgs_dir     # Directory for conda package cache
+  PIP_CACHE_DIR: ~/.cache/qyro-pip      # Directory for pip cache used within each environment
+
+jobs:
+  test-matrix:
+    name: ${{ matrix.framework }} | Py ${{ matrix.python-version }} | ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.11", "3.12", "3.13"]
+        framework: [PySide6, PyQt6, PyQt5, Kivy, Tkinter]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ISO week: causes caches to be refreshed weekly
+      - name: Compute cache week
+        id: week
+        run: echo "value=$(date +%G-%V)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore conda package cache
+        id: conda-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/conda_pkgs_dir
+          key: conda-${{ runner.os }}-${{ runner.arch }}-py${{ matrix.python-version }}-v${{ env.CACHE_VERSION }}-${{ steps.week.outputs.value }}
+          restore-keys: |
+            conda-${{ runner.os }}-${{ runner.arch }}-py${{ matrix.python-version }}-v${{ env.CACHE_VERSION }}-
+
+      - name: Restore pip cache
+        id: pip-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/qyro-pip
+          key: pip-${{ runner.os }}-${{ runner.arch }}-py${{ matrix.python-version }}-${{ matrix.framework }}-v${{ env.CACHE_VERSION }}-${{ steps.week.outputs.value }}-${{ hashFiles('pyproject.toml', 'poetry.lock') }}
+          restore-keys: |
+            pip-${{ runner.os }}-${{ runner.arch }}-py${{ matrix.python-version }}-${{ matrix.framework }}-v${{ env.CACHE_VERSION }}-${{ steps.week.outputs.value }}-
+            pip-${{ runner.os }}-${{ runner.arch }}-py${{ matrix.python-version }}-${{ matrix.framework }}-v${{ env.CACHE_VERSION }}-
+
+      - name: Setup Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          auto-update-conda: false
+          python-version: "3.12"
+
+      - name: Install Linux GUI dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libegl1 libgl1 libglx-mesa0 libgl1-mesa-dri \
+            libxkbcommon-x11-0 libdbus-1-3 libxcb-cursor0 libxcb-icccm4 libxcb-image0 \
+            libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 \
+            libxcb-xinerama0 libxcb-xfixes0 libfontconfig1 libglib2.0-0
+
+      - name: Run orchestrator (Linux, Xvfb)
+        if: runner.os == 'Linux'
+        run: |
+          xvfb-run -a python scripts/run_matrix.py \
+            --python ${{ matrix.python-version }} \
+            --framework ${{ matrix.framework }} \
+            --cli-source . \
+            --clean-environments
+
+      - name: Run orchestrator (Windows / macOS)
+        if: runner.os != 'Linux'
+        env:
+          QT_QPA_PLATFORM: minimal
+          QT_QUICK_BACKEND: software
+          KIVY_GL_BACKEND: sdl2
+        run: |
+          python scripts/run_matrix.py \
+            --python ${{ matrix.python-version }} \
+            --framework ${{ matrix.framework }} \
+            --cli-source . \
+            --clean-environments
+
+      # Save caches even if the job fails (but not if it was cancelled)
+      - name: Save conda package cache
+        if: ${{ !cancelled() && steps.conda-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v4
+        with:
+          path: ~/conda_pkgs_dir
+          key: ${{ steps.conda-cache.outputs.cache-primary-key }}
+
+      - name: Save pip cache
+        if: ${{ !cancelled() && steps.pip-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/qyro-pip
+          key: ${{ steps.pip-cache.outputs.cache-primary-key }}
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ matrix.os }}-py${{ matrix.python-version }}-${{ matrix.framework }}
+          path: qyro-matrix-results/**/logs/*.log
+          if-no-files-found: ignore
+          retention-days: 5
+
+      - name: Publish summary
+        if: always()
+        run: |
+          if [ -f qyro-matrix-results/summary.md ]; then
+            cat qyro-matrix-results/summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi

@@ -1,17 +1,26 @@
 <p align="center">
-  <img src="https://ik.imagekit.io/kummiktgaiq/ppg/Qyro-logo.svg?updatedAt=1755215983279" alt="Qyro Logo" width="50%">
+  <img
+    src="https://ik.imagekit.io/kummiktgaiq/ppg/Qyro-logo.svg?updatedAt=1755215983279"
+    alt="Qyro Logo"
+    width="50%"
+  >
 </p>
 
 > [!WARNING]
 > **Qyro CLI is currently in alpha.** Commands, flags, templates, packaging
 > behavior, and configuration formats may change between releases.
-> Desktop workflows are the current focus. Mobile support is not yet stable.
+>
+> Supported workflows currently focus on desktop applications. Mobile
+> packaging is experimental and is not part of the supported production
+> workflow.
 
 # ⚡ Qyro CLI
 
-> **The official developer CLI and project orchestrator for the [Qyro](https://github.com/Neuri-AI/qyro) desktop and mobile application ecosystem.**
+> **The official developer CLI and project orchestrator for the
+> [Qyro](https://github.com/Neuri-AI/qyro) desktop and mobile application
+> ecosystem.**
 
-[![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14%20%7C%203.15-blue.svg)](https://python.org)
+[![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue.svg)](https://python.org)
 [![Qyro Platforms Tests](https://github.com/Neuri-AI/qyro-cli/actions/workflows/matrix.yml/badge.svg)](https://github.com/Neuri-AI/qyro-cli/actions/workflows/matrix.yml)
 ![GitHub Release](https://img.shields.io/github/v/release/Neuri-AI/qyro?include_prereleases&display_name=release&color=stable)
 ![GitHub Issues](https://img.shields.io/github/issues/Neuri-AI/qyro)
@@ -21,80 +30,85 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Sponsor](https://img.shields.io/badge/Sponsor-Buy%20Me%20a%20Coffee-FFDD00?logo=buymeacoffee&logoColor=000000)](https://buymeacoffee.com/neuri)
 
-
 > [!WARNING]
-> **Mobile support is a work in progress.** Every mobile-related feature described in this document (Buildozer packaging, the `[mobile]` extra, Android/iOS targets, Kivy on mobile) is **not finished yet**. For now, Qyro CLI **only works for desktop** (Windows, macOS and Linux).
+> **Mobile support is experimental.** Buildozer packaging, the `[mobile]`
+> extra, Android/iOS targets, and Kivy mobile workflows are incomplete and may
+> change without notice.
 >
-
+> The currently supported Qyro CLI workflow is desktop-only on Windows, macOS,
+> and Linux.
 
 ---
 
 ## ✨ Features
 
-- **⚡ Unified Multi-Framework Support:** Scaffold projects for **PySide6**, **PyQt6**, **PyQt5**, **PySide2**, **Kivy**, or **Tkinter**.
-- **🔄 Smart Template Resolution:** Uses template providers with fallback support for robust initialization workflows.
-- **❄️ Packaging & Freezing Ready:** Native freezing for desktop targets with PyInstaller.
-- **📦 Distribution Bundling:** Platform-aware bundling for DMG, NSIS, and Linux package formats.
-- **🔐 Code Signing & Notarization:** Windows Authenticode and macOS signing with optional notarization/stapling.
-- **✅ Release Preflight Checks:** Validate dependencies and `release.json` paths/options before packaging.
-- **🧹 Artifact Cleanup:** Clean build outputs and optional release outputs with one command.
+- **⚡ Unified Multi-Framework Support:** Scaffold projects for **PySide6**,
+  **PyQt6**, **PyQt5**, **PySide2**, **Kivy**, or **Tkinter**.
+- **🔄 Smart Template Resolution:** Uses template providers with fallback
+  support for robust initialization workflows.
+- **❄️ Packaging & Freezing Ready:** Native desktop freezing with PyInstaller.
+- **📦 Distribution Bundling:** Platform-aware bundling for DMG, NSIS, and
+  Linux package formats.
+- **🔐 Code Signing & Notarization:** Windows Authenticode and macOS signing
+  with optional notarization and stapling.
+- **✅ Release Preflight Checks:** Validate dependencies and `release.json`
+  paths and options before packaging.
+- **🧹 Artifact Cleanup:** Clean build outputs and optional release outputs with
+  one command.
 
 ---
 
 ## Compatibility
 
-A check mark indicates that the complete Qyro workflow has been validated
-for the specified framework, platform, and Python version:
+The matrix below reports validation results for the complete desktop workflow:
 
-`init → start → build → bundle`
+```text
+init → start → build → bundle
+```
 
-| Framework | Platform | Python 3.10 | Python 3.11 | Python 3.12 | Python 3.13 | Python 3.14 | Fail Step |
-| --------- | -------- | ----------- | ----------- | ----------- | ----------- | ----------- | --------- |
-| **PySide6** | Windows | ✅  | ✅  | ✅  | ✅  | ✅  | — |
-| PySide6 | macOS | ✅  | ✅  | ✅  | ✅  | ✅  | — |
-| PySide6 | Linux | ✅  | ✅  | ✅  | ✅  | ✅  | — |
-| **PyQt6** | Windows | ✅  | ✅  | ✅  | ✅  | ✅  | — |
-| PyQt6 | macOS | ✅  | ✅  | ✅  | ✅  | ✅  | — |
-| PyQt6 | Linux | ✅  | ✅  | ✅  | ✅  | ✅  | — |
-| **PyQt5** | Windows | ✅  | ✅  | ✅  | ✅  | ✅  | — |
-| PyQt5 | macOS | ✅  | ✅  | ✅  | ✅  | ✅  | — |
-| PyQt5 | Linux | ✅  | ✅  | ✅  | ✅  | ✅  | — |
-| **Kivy** | Windows | ✅ | ✅ | ✅ | ✅ | ❌ FAIL | `install` |
-| Kivy | macOS | ✅ | ✅ | ✅ | ✅ | ✅  | — |
-| Kivy | Linux | ✅  | ✅  | ✅  | ✅  | ✅  | — |
-| **Tkinter** | Windows | ✅  | ✅  | ✅  | ✅  | ✅  | — |
-| Tkinter | macOS | ✅  | ✅  | ✅  | ✅  | ✅  | — |
-| Tkinter | Linux | ✅  | ✅  | ✅  | ✅  | ✅  | — |
+> Matrix last validated: **2026-10-02**  
+> CI run: [#37052349565](https://github.com/Neuri-AI/qyro-cli/actions/runs/37052349565)
 
+| Framework | Platform | Python 3.10 | Python 3.11 | Python 3.12 | Python 3.13 | Python 3.14 | Notes |
+| --------- | -------- | ----------- | ----------- | ----------- | ----------- | ----------- | ----- |
+| PySide6 | Windows | ✅ | ✅ | ✅ | ✅ | ✅ | Full pass |
+| PySide6 | macOS | ✅ | ✅ | ✅ | ✅ | ✅ | Full pass |
+| PySide6 | Linux | ✅ | ✅ | ✅ | ✅ | ✅ | Full pass |
+| PySide2 | Linux | — | — | — | — | — | No CI coverage |
+| PySide2 | Windows | — | — | — | — | — | No CI coverage |
+| PySide2 | macOS | — | — | — | — | — | No CI coverage |
+| PyQt6 | Windows | ✅ | ✅ | ✅ | ✅ | ✅ | Full pass |
+| PyQt6 | macOS | ✅ | ✅ | ✅ | ✅ | ✅ | Full pass |
+| PyQt6 | Linux | ✅ | ✅ | ✅ | ✅ | ✅ | Full pass |
+| PyQt5 | Windows | ✅ | ✅ | ✅ | ✅ | ✅ | Full pass |
+| PyQt5 | macOS | ✅ | ✅ | ✅ | ✅ | ✅ | Full pass |
+| PyQt5 | Linux | ✅ | ✅ | ✅ | ✅ | ✅ | Full pass |
+| Kivy | Windows | ✅ | ✅ | ✅ | ✅ | ❌ | Python 3.14 failed at `install` |
+| Kivy | macOS | ✅ | ✅ | ✅ | ✅ | ✅ | Full pass |
+| Kivy | Linux | ✅ | ✅ | ✅ | ✅ | ✅ | Full pass |
+| Tkinter | Windows | ✅ | ✅ | ✅ | ✅ | ✅ | Full pass |
+| Tkinter | macOS | ✅ | ✅ | ✅ | ✅ | ✅ | Full pass |
+| Tkinter | Linux | ✅ | ✅ | ✅ | ✅ | ✅ | Full pass |
 
-> `—` indicates that the combination has not yet been validated.
->
-> `❌` indicates that validation was attempted but failed. The `Step` shown
-> below identifies the stage where the failure occurred.
->
-> **Kivy · Python 3.14 · Windows:** ❌ `install`
->
-> Compatib**ility results are spec**ific to the host platform and environment
-> used during testing.
->
-> **Test environment:** Windows 11 (`10.0.26200.9457`), Python 3.10.22.
+Legend:
+
+- ✅ `FULL PASS`: all four workflow stages completed.
+- ❌ `FAIL`: validation was attempted and failed.
+- — `NOT TESTED`: no validation result is available.
+
+Known failure:
+
+- **Kivy · Python 3.14 · Windows:** failed during `install`.
+
+Compatibility results are specific to the operating system, Python version,
+framework, dependency state, and CI environment used during testing.
 
 
 ---
 
 ## 🚀 Installation
 
-### Core CLI
-
-```bash
-# Using pip
-pip install qyro-cli
-
-# Using Poetry
-poetry add qyro-cli
-```
-
-### Desktop Packaging Support (PyInstaller)
+### Supported desktop installation
 
 ```bash
 # Using pip
@@ -104,9 +118,23 @@ pip install "qyro-cli[desktop]"
 poetry add qyro-cli -E desktop
 ```
 
-### Mobile Packaging Support (Buildozer)
+The core package can also be installed without the desktop extra:
+
+```bash
+# Using pip
+pip install qyro-cli
+
+# Using Poetry
+poetry add qyro-cli
+```
+
+### Experimental mobile installation
+
 > [!WARNING]
-> **Mobile packaging is not ready yet.** The `[mobile]` extra and Buildozer integration are under active development and may be incomplete or change without notice. Please use the desktop workflow for now.
+> Mobile packaging is experimental and is not part of the supported production
+> workflow. Install this extra only if you are testing the Buildozer
+> integration.
+
 ```bash
 # Using pip
 pip install "qyro-cli[mobile]"
@@ -115,7 +143,8 @@ pip install "qyro-cli[mobile]"
 poetry add qyro-cli -E mobile
 ```
 
-### Complete Bundle (Desktop + Mobile)
+The `[all]` extra includes experimental mobile dependencies and is not
+recommended for production use:
 
 ```bash
 # Using pip
@@ -133,7 +162,7 @@ The **Qyro Settings Builder** provides a visual interface for preparing
 application, platform-specific, and release configuration files used by Qyro
 projects.
 
-It helps simplify the configuration of:
+It helps simplify:
 
 - Application settings.
 - Platform-specific settings.
@@ -153,9 +182,9 @@ reviewed before running Qyro CLI commands.
 
 ---
 
-## 💻 Quick Start & Usage
+## 💻 Quick Start
 
-Qyro CLI provides the complete desktop application workflow:
+Qyro CLI provides the following desktop workflow:
 
 1. Initialize a project from a framework template.
 2. Run the application from source.
@@ -172,10 +201,13 @@ qyro init --name my-app
 You can preselect a binding and template version:
 
 ```bash
-qyro init --name my-app --binding PySide6 --template-version 1.0.x
+qyro init \
+  --name my-app \
+  --binding PySide6 \
+  --template-version 1.0.x
 ```
 
-You can also initialize a project without opening the interactive setup menu:
+For non-interactive initialization:
 
 ```bash
 qyro init \
@@ -190,22 +222,26 @@ qyro init \
   --yes
 ```
 
-Non-interactive init flags:
+Supported initialization options:
 
-- `--target-platform`: `desktop`, `x86_64`, `apple-silicon`, `iphone`, `android`
-- `--app-name`: application display name
-- `--version`: semantic app version
-- `--author`: author name
-- `--addon`: optional dependency addon (repeatable). Values: `hotrl`, `pydux`, `sentry-sdk`, `requests`
-- `--bundle-id`: bundle identifier for iPhone / Apple Silicon templates
-- `-y, --yes`: skip confirmation prompt
+- `--target-platform`: `desktop`, `x86_64`, `apple-silicon`, `iphone`, or
+  `android`.
+- `--app-name`: Application display name.
+- `--version`: Semantic application version.
+- `--author`: Author name.
+- `--addon`: Optional dependency add-on. Repeatable. Supported values:
+  `hotrl`, `pydux`, `sentry-sdk`, and `requests`.
+- `--bundle-id`: Bundle identifier for iPhone or Apple Silicon templates.
+- `-y, --yes`: Skip the confirmation prompt.
 
 Notes:
 
-- `desktop` maps to `x86_64`.
-- If these flags are omitted, `qyro init` keeps the interactive wizard behavior.
+- `desktop` maps to the desktop template target.
+- If these flags are omitted, `qyro init` uses the interactive wizard.
+- Mobile targets are experimental and are not part of the supported desktop
+  workflow.
 
-Supported `--binding` values:
+Supported bindings:
 
 - `PySide6`
 - `PyQt6`
@@ -213,48 +249,59 @@ Supported `--binding` values:
 - `PySide2`
 - `Kivy`
 - `Tkinter`
-  
+
 > [!NOTE]
-> **Kivy** projects currently work on desktop only. Mobile builds (Android/iOS) are not supported yet.
+> Kivy desktop support is reflected in the compatibility matrix. Kivy mobile
+> builds are not currently supported.
 
 ### 2) Run from source
+
+Run this command from the generated project directory:
 
 ```bash
 cd my-app
 qyro start
 ```
 
-Note: `qyro start` currently runs from source without release flag variants.
+`qyro start` currently runs the application from source without release flag
+variants.
 
 ### 3) Freeze executable artifacts
 
+Run these commands from a Qyro project directory:
+
 ```bash
-# default desktop target, profile=release
+# Default desktop target with the release profile
 qyro build
 
-# single executable
+# Single executable
 qyro build --onefile
-# or
+
+# Equivalent mode syntax
 qyro build --mode onefile
 
-# platform profile override
+# Platform target override
 qyro build --target mac
 qyro build --target windows
 qyro build --target linux
 
-# extra controls
+# Additional controls
 qyro build --debug --console --uac --clean --interactive
 ```
+
 > [!NOTE]
-> Available `--target` values are desktop platforms only (`mac`, `windows`, `linux`). Mobile targets are not available yet.
+> Available `--target` values are desktop platforms only: `mac`, `windows`,
+> and `linux`.
 
 ### 4) Bundle for distribution
 
+Run these commands from a Qyro project directory:
+
 ```bash
-# auto format by host OS
+# Select the default format for the host operating system
 qyro bundle
 
-# explicit platform and format
+# Explicit platform and format
 qyro bundle --platform mac --format dmg
 qyro bundle --platform windows --format nsis
 qyro bundle --platform linux --format tar.gz
@@ -262,37 +309,48 @@ qyro bundle --platform linux --format deb
 qyro bundle --platform linux --format rpm
 qyro bundle --platform linux --format arch
 
-# include an additional zip and custom output dir
+# Include an additional ZIP and use a custom output directory
 qyro bundle --zip --release-dir release
 ```
 
-### Validate before packaging (preflight)
+### Validate before packaging
 
 ```bash
 qyro bundle --check
 ```
 
-This validates dependencies and `release` settings (like DMG background and extra files) without generating artifacts.
+This validates dependencies and `release` settings, such as DMG backgrounds
+and extra files, without generating artifacts.
 
-### Windows NSIS customization (`settings/release.json`)
+---
 
-When packaging with `qyro bundle --platform windows --format nsis`, you can customize installer behavior using `bundle.nsis` in `settings/release.json`.
+## Windows NSIS customization
+
+When packaging with:
+
+```bash
+qyro bundle --platform windows --format nsis
+```
+
+you can customize installer behavior using `bundle.nsis` in
+`settings/release.json`.
 
 Supported options:
 
-- `bundle.nsis.icons.install`: Path to installer icon (`.ico`).
-- `bundle.nsis.icons.uninstall`: Path to uninstaller icon (`.ico`).
-- `bundle.nsis.welcome_bitmap`: Path to welcome/finish bitmap image used by NSIS Modern UI.
-- `bundle.nsis.install_location`: Base install location. Allowed values: `programfiles64` -> `$PROGRAMFILES64`, `programfiles32` -> `$PROGRAMFILES32`, `appdata` -> `$LOCALAPPDATA`.
-- `bundle.nsis.execution_level`: Installer privilege level. Allowed values: `highest`, `admin`, `user`.
+- `bundle.nsis.icons.install`: Installer icon path (`.ico`).
+- `bundle.nsis.icons.uninstall`: Uninstaller icon path (`.ico`).
+- `bundle.nsis.welcome_bitmap`: Welcome/finish bitmap path.
+- `bundle.nsis.install_location`: `programfiles64`, `programfiles32`, or
+  `appdata`.
+- `bundle.nsis.execution_level`: `highest`, `admin`, or `user`.
 
 Defaults:
 
 - `install_location`: `programfiles64`
 - `execution_level`: `highest`
-- `icons.install`: `resources/base/icons/install.ico` (used if file exists)
-- `icons.uninstall`: `resources/base/icons/uninstall.ico` (used if file exists)
-- `welcome_bitmap`: not set by default
+- `icons.install`: `resources/base/icons/install.ico` if the file exists.
+- `icons.uninstall`: `resources/base/icons/uninstall.ico` if the file exists.
+- `welcome_bitmap`: not set by default.
 
 Example:
 
@@ -312,58 +370,78 @@ Example:
 }
 ```
 
-Tip:
-
-- Run `qyro bundle --check --platform windows --format nsis` to validate NSIS option values and file paths before generating artifacts.
-
-### Clean outputs
+Validate NSIS options before generating the installer:
 
 ```bash
-# clean freeze directory (default: build/)
+qyro bundle --check --platform windows --format nsis
+```
+
+---
+
+## Clean outputs
+
+Run these commands from a Qyro project directory:
+
+```bash
+# Clean the freeze directory
 qyro clean
 
-# also clean release/
+# Also clean the release directory
 qyro clean --release
 ```
 
-### Sign compiled artifacts
+---
+
+## Sign compiled artifacts
+
+Run these commands from a Qyro project directory:
 
 ```bash
-# preflight validation only
+# Preflight validation only
 qyro sign --check --platform windows
 qyro sign --check --platform mac
 
-# sign frozen binaries/app bundle
+# Sign frozen binaries or application bundles
 qyro sign --platform windows
 qyro sign --platform mac
 
-# macOS notarization flow (sign + notarize + staple)
-qyro sign --platform mac --notarize --staple --keychain-profile "QYRO-NOTARY"
+# macOS notarization flow
+qyro sign \
+  --platform mac \
+  --notarize \
+  --staple \
+  --keychain-profile "QYRO-NOTARY"
 
-# skip Gatekeeper assessment if desired
-qyro sign --platform mac --notarize --staple --no-assess
+# Skip Gatekeeper assessment if required
+qyro sign \
+  --platform mac \
+  --notarize \
+  --staple \
+  --no-assess
 ```
 
-### Signing guide (Windows + macOS)
+---
 
-Use `settings/release.json` (or `build/settings/release.json`) to configure signing.
+## Signing guide
 
-#### Windows signing (Authenticode)
+Use `settings/release.json` to configure signing.
+
+### Windows signing
 
 Requirements:
 
 - Windows host with `signtool` available in `PATH`.
-- A code-signing certificate file (for example `.pfx`) and its password.
+- Code-signing certificate file, such as `.pfx`.
+- Certificate password supplied through `settings/secrets.json`.
 
-Example configuration:
+Example `settings/release.json`:
 
 ```json
 {
   "sign": {
     "windows": {
       "certificate": "src/sign/windows/certificate.pfx",
-      "password": "<secret>",
-      "timestamp_server": "http://timestamp.digicert.com",
+      "timestamp_server": "https://timestamp.digicert.com",
       "description": "MyApp",
       "url": "https://example.com"
     }
@@ -371,52 +449,36 @@ Example configuration:
 }
 ```
 
-Security note:
-
-- Do not commit real passwords, tokens or private keys in `settings/release.json`.
-- Put sensitive values in `settings/secrets.json` instead (loaded locally at build/sign time).
+Do not commit passwords, tokens, certificates, or private keys.
 
 Recommended flow:
 
 ```bash
-# 1) build artifacts
+# 1. Build artifacts
 qyro build --target windows
 
-# 2) validate signing prerequisites
+# 2. Validate signing prerequisites
 qyro sign --check --platform windows
 
-# 3) sign all signable binaries in build/
+# 3. Sign supported binaries in build/
 qyro sign --platform windows
 ```
 
-By default, Qyro signs supported binary types in the freeze output (for example `.exe`, `.dll`, `.msi`, `.cab`).
+By default, Qyro signs supported binary types in the freeze output, such as
+`.exe`, `.dll`, `.msi`, and `.cab`.
 
-#### macOS signing + notarization
+### macOS signing and notarization
 
 Requirements:
 
-- macOS host with Xcode Command Line Tools (`codesign`, `xcrun`, `notarytool`, `stapler`, `spctl`).
-- Apple Developer membership and a valid `Developer ID Application` certificate in Keychain.
-- Entitlements file for Python runtime behavior (recommended for GUI Python apps).
+- macOS host with Xcode Command Line Tools:
+  `codesign`, `xcrun`, `notarytool`, `stapler`, and `spctl`.
+- Apple Developer membership.
+- Valid `Developer ID Application` certificate in Keychain.
+- Entitlements file for Python runtime behavior, recommended for GUI
+  applications.
 
-Example `entitlements.plist`:
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-  <dict>
-    <key>com.apple.security.cs.allow-jit</key>
-    <true/>
-    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
-    <true/>
-    <key>com.apple.security.cs.disable-library-validation</key>
-    <true/>
-  </dict>
-</plist>
-```
-
-Example configuration:
+Example:
 
 ```json
 {
@@ -436,53 +498,52 @@ Example configuration:
 }
 ```
 
-Security note:
-
-- Do not commit Apple credentials (`app_password`, API key paths, keychain profile names tied to private key workflows) in shared config files.
-- Use `settings/secrets.json` for local secret overrides.
+Do not commit Apple credentials, API keys, passwords, private keys, or
+credential-bearing configuration to the repository. Use
+`settings/secrets.json` for local secret overrides.
 
 Recommended flow:
 
 ```bash
-# 1) build mac app bundle
+# 1. Build the macOS application bundle
 qyro build --target mac
 
-# 2) validate signing/notary prerequisites
+# 2. Validate signing and notarization prerequisites
 qyro sign --check --platform mac
 
-# 3) sign only
+# 3. Sign the application
 qyro sign --platform mac
 
-# 4) sign + notarize + staple
-qyro sign --platform mac --notarize --staple --keychain-profile "QYRO-NOTARY"
+# 4. Sign, notarize, and staple
+qyro sign \
+  --platform mac \
+  --notarize \
+  --staple \
+  --keychain-profile "QYRO-NOTARY"
 ```
 
-Authentication options for `sign.mac.notary`:
+Supported notarization authentication options:
 
 - `keychain_profile`
-- `key_path` + `key_id` (+ `issuer` for Team keys)
+- `key_path` + `key_id` + optional `issuer`
 - `apple_id` + `team_id` + `app_password`
 
-When `sign.mac.identity` and `sign.mac.entitlements` are configured, Qyro also forwards them to PyInstaller (`--codesign-identity` and `--osx-entitlements-file`) during `qyro build` on macOS so collected binaries are signed during packaging.
+When `sign.mac.identity` and `sign.mac.entitlements` are configured, Qyro
+also forwards them to PyInstaller through `--codesign-identity` and
+`--osx-entitlements-file` during macOS builds.
 
-### Secret management (`settings/secrets.json`)
+---
+
+## Secret management
 
 Qyro supports a local-only secrets file:
 
-- `settings/secrets.json` (preferred)
-- `build/settings/secrets.json` (legacy compatibility)
+- `settings/secrets.json`.
 
-How it works:
+Qyro loads base and profile settings first, then applies `secrets.json` as the
+highest-precedence override.
 
-- Qyro loads base/profile settings first, then applies `secrets.json` as highest-precedence overrides.
-- This means values in `secrets.json` replace values from `base.json`, `release.json`, `windows.json`, `mac.json`, etc.
-
-Repository safety:
-
-- `settings/secrets.json` must never be committed.
-- The repository `.gitignore` includes this path by default.
-
-Example:
+Example `settings/secrets.json`:
 
 ```json
 {
@@ -500,43 +561,52 @@ Example:
 }
 ```
 
+Repository safety:
+
+- Never commit `settings/secrets.json`.
+- The repository `.gitignore` includes this path by default.
+
 ---
 
-## Alpha Status
+## Alpha status
 
 The following areas are still under active development:
 
 - Some optional CLI flags may change or require further validation.
-- Mobile targets and Buildozer integration are not ready.
+- Mobile targets and Buildozer integration are experimental.
 - Code signing and notarization require platform-specific tools and
   credentials.
-- Compatibility results depend on the framework, operating system, and Python
-  version combination.
+- Compatibility depends on the framework, operating system, Python version,
+  dependency versions, and test environment.
 
-The documented compatibility matrix reflects only workflows that have been
-validated successfully.
+The compatibility matrix distinguishes successful, failed, and not-yet-tested
+combinations. It does not guarantee compatibility with every dependency
+revision or operating-system update.
+
 ---
 
 ## 🎛️ CLI Commands Reference
 
-| Command | Flags / Args | Description |
-| :--- | :--- | :--- |
-| `qyro init` | `-n, --name` `-b, --binding` `--template-version` | Initialize a new project. |
-| `qyro start` | none | Run the app from source. |
-| `qyro build` | `-m, --mode onedir|onefile` `--onefile` `--debug` `--console` `--uac` `-p, --profile` `-c, --clean` `-i, --interactive` `--target` `--init-spec` | Freeze/build artifacts. |
-| `qyro bundle` | `--release-dir` `--no-resources` `--zip` `--platform` `--format` `--check` | Create distributable packages or run preflight checks. |
-| `qyro sign` | `--platform windows|mac|auto` `--check` `--notarize` `--staple` `--no-assess` `--keychain-profile` | Sign compiled artifacts and optionally notarize/staple macOS `.app`. |
-| `qyro clean` | `--release` | Remove generated build artifacts. |
-| `qyro version` | none | Show current version info. |
+Commands marked as requiring a project must be run from a generated Qyro
+project directory.
+
+| Command | Project required | Flags / Args | Description |
+| :--- | :---: | :--- | :--- |
+| `qyro init` | No | `-n, --name`, `-b, --binding`, `--template-version` | Initialize a new project. |
+| `qyro start` | Yes | None | Run the application from source. |
+| `qyro build` | Yes | `-m, --mode`, `--onefile`, `--debug`, `--console`, `--uac`, `-p, --profile`, `-c, --clean`, `-i, --interactive`, `--target`, `--init-spec` | Freeze/build artifacts. |
+| `qyro bundle` | Yes | `--release-dir`, `--no-resources`, `--zip`, `--platform`, `--format`, `--check` | Create distributable packages or run preflight checks. |
+| `qyro sign` | Yes | `--platform`, `--check`, `--notarize`, `--staple`, `--no-assess`, `--keychain-profile` | Sign compiled artifacts and optionally notarize/staple macOS apps. |
+| `qyro clean` | Yes | `--release` | Remove generated build artifacts. |
+| `qyro version` | No | None | Show version information. |
 
 ---
 
-## ⚙️ Bundle Configuration (`release.json`)
+## ⚙️ Bundle configuration
 
 Projects can configure bundle behavior in:
 
-- `build/settings/release.json` (legacy/generated layout)
-- `settings/release.json` (also supported)
+- `settings/release.json` — current layout.
 
 Example:
 
@@ -546,11 +616,23 @@ Example:
   "environment": "development",
   "bundle": {
     "dmg": {
-      "window": { "x": 200, "y": 120 },
-      "window_size": { "width": 660, "height": 420 },
+      "window": {
+        "x": 200,
+        "y": 120
+      },
+      "window_size": {
+        "width": 660,
+        "height": 420
+      },
       "icon_size": 120,
-      "app_position": { "x": 180, "y": 180 },
-      "applications_position": { "x": 480, "y": 180 },
+      "app_position": {
+        "x": 180,
+        "y": 180
+      },
+      "applications_position": {
+        "x": 480,
+        "y": 180
+      },
       "background": "assets/dmg-background.jpg"
     },
     "extra_files": [
@@ -566,75 +648,88 @@ Example:
 
 ### `bundle.extra_files`
 
-Supports:
+Supported forms:
 
-- String path: copied to bundle root.
-- Object with `source` + `destination`: copied to relative destination inside bundle.
+- String path: copied to the bundle root.
+- Object with `source` and `destination`: copied to a relative destination
+  inside the bundle.
 
 Validation rules:
 
 - `source` must exist.
-- `destination` must be relative (no absolute paths).
-- `destination` cannot escape output directory.
+- `destination` must be relative.
+- Absolute destinations are not allowed.
+- `destination` must not escape the output directory.
 
 ### `bundle.dmg`
 
-When DMG custom options are set, `create-dmg` is required.
+When DMG customization is configured, `create-dmg` is required.
 
-If no DMG custom options are set, bundling can fallback to native `hdiutil`.
+Without custom DMG options, bundling can fall back to native `hdiutil` on macOS.
 
 ---
 
-## 🧰 Packaging Dependencies
+## 🧰 Packaging dependencies
 
 | Format | Requirement |
 | :--- | :--- |
-| `dmg` with customization | `create-dmg` |
-| `dmg` without customization | `hdiutil` (macOS) |
-| `nsis` | `makensis` |
-| `deb`, `rpm`, `arch` | `fpm` |
+| DMG with customization | `create-dmg` |
+| DMG without customization | `hdiutil` on macOS |
+| NSIS | `makensis` |
+| DEB, RPM, or Arch | `fpm` |
 
 Install `create-dmg` on macOS with one of:
 
 ```bash
 brew install create-dmg
-# or
+```
+
+or:
+
+```bash
 npm install -g create-dmg
 ```
 
 ---
 
-## 🖼️ Supported Framework Ecosystem
+## 🖼️ Supported framework ecosystem
 
-`qyro-cli` generates apps that integrate natively with `qyro` adapters:
+`qyro-cli` generates applications that integrate with Qyro adapters:
 
 | Binding | Adapter | Best For |
 | :--- | :--- | :--- |
-| **PySide6** | `PySide6Adapter` | Modern Qt 6 desktop apps with rich widgets and tooling. |
-| **PyQt6** | `PyQt6Adapter` | Feature-complete Qt 6 desktop software. |
-| **PyQt5** | `PyQt5Adapter` | Legacy enterprise Qt 5 systems. |
-| **PySide2** | `PySide2Adapter` | Official Qt 5 environments. |
-| **Kivy** | `KivyAdapter` | Cross-platform touch interfaces for desktop/mobile. |
-| **Tkinter** | `TkinterAdapter` | Zero-dependency desktop utilities built on stdlib. |
+| **PySide6** | `PySide6Adapter` | Modern Qt 6 desktop applications. |
+| **PyQt6** | `PyQt6Adapter` | Feature-complete Qt 6 desktop applications. |
+| **PyQt5** | `PyQt5Adapter` | Legacy Qt 5 desktop applications. |
+| **PySide2** | `PySide2Adapter` | Qt 5 environments; not included in the current matrix. |
+| **Kivy** | `KivyAdapter` | Cross-platform desktop interfaces; mobile support is experimental. |
+| **Tkinter** | `TkinterAdapter` | Desktop utilities built on the Python standard library. |
+
 > [!WARNING]
-> Mobile deployment of **Kivy** apps is still in progress. All adapters are supported on **desktop only** for now.
----
-
-## 🔌 Built-in Add-ons
-
-Projects can be configured with modular add-ons in settings:
-
-- **`hotrl` (Hot Reloading):** Iterative development with live code reload.
-- **`pydux` (Predictable State):** Redux-inspired state container patterns.
-- **`sentry` (Telemetry):** Exception and crash reporting integration.
+> All adapters are currently supported on desktop only. Mobile deployment is
+> experimental and is not part of the supported production workflow.
 
 ---
 
-## 📝 Notes for Developers
+## 🔌 Built-in add-ons
+
+Projects can be configured with modular add-ons:
+
+- **`hotrl` — Hot Reloading:** Iterative development with live code reload.
+- **`pydux` — Predictable State:** Redux-inspired state container patterns.
+- **`sentry-sdk` — Telemetry:** Exception and crash reporting integration.
+- **`requests` — HTTP Client:** Optional HTTP client dependency.
+
+---
+
+## 📝 Notes for developers
 
 - `qyro bundle --check` is the fastest way to validate release readiness in CI.
 - `qyro clean --release` is useful before reproducible release builds.
-- If a bundle step fails, use the exact error output; validations are strict by design to avoid silent bad packages.
+- If a bundle step fails, inspect the exact command output and step-specific
+  logs.
+- Compatibility results should be refreshed when supported Python versions,
+  dependency constraints, or packaging logic change.
 
 ---
 
@@ -643,11 +738,31 @@ Projects can be configured with modular add-ons in settings:
 Contributions to `qyro-cli` and the Qyro ecosystem are welcome.
 
 1. Fork the repository on GitHub.
-2. Create your feature branch (`git checkout -b feature/amazing-feature`).
-3. Run test suites (`poetry run pytest`).
-4. Commit your changes (`git commit -m 'feat: add amazing feature'`).
-5. Push to your branch (`git push origin feature/amazing-feature`).
-6. Open a Pull Request.
+2. Create a feature branch:
+
+   ```bash
+   git checkout -b feature/amazing-feature
+   ```
+
+3. Run the test suite:
+
+   ```bash
+   poetry run pytest
+   ```
+
+4. Commit your changes:
+
+   ```bash
+   git commit -m "feat: add amazing feature"
+   ```
+
+5. Push your branch:
+
+   ```bash
+   git push origin feature/amazing-feature
+   ```
+
+6. Open a pull request.
 
 ---
 
@@ -657,8 +772,11 @@ MIT. See [LICENSE](LICENSE).
 
 ---
 
-## 👥 Organization & Maintainers
+## 👥 Organization and maintainers
 
 - **Organization:** [Neuri](https://github.com/Neuri-AI)
-- **Lead Maintainer:** Luis Alfredo De Los Reyes ([luisalfredoreyes98@gmail.com](mailto:luisalfredoreyes98@gmail.com))
-- **Ecosystem:** [Qyro](https://github.com/Neuri-AI/qyro) • [Qyro CLI](https://github.com/Neuri-AI/qyro-cli) • [Boilerplates](https://github.com/Neuri-AI)
+- **Lead Maintainer:** Luis Alfredo De Los Reyes
+  ([luisalfredoreyes98@gmail.com](mailto:luisalfredoreyes98@gmail.com))
+- **Ecosystem:** [Qyro](https://github.com/Neuri-AI/qyro) •
+  [Qyro CLI](https://github.com/Neuri-AI/qyro-cli) •
+  [Boilerplates](https://github.com/Neuri-AI)

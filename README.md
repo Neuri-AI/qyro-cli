@@ -22,11 +22,11 @@
 
 [![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue.svg)](https://python.org)
 [![Qyro Platforms Tests](https://github.com/Neuri-AI/qyro-cli/actions/workflows/matrix.yml/badge.svg)](https://github.com/Neuri-AI/qyro-cli/actions/workflows/matrix.yml)
-![GitHub Release](https://img.shields.io/github/v/release/Neuri-AI/qyro?include_prereleases&display_name=release&color=stable)
-![GitHub Issues](https://img.shields.io/github/issues/Neuri-AI/qyro)
-![GitHub Issues Closed](https://img.shields.io/github/issues-closed/Neuri-AI/qyro?color=green)
-![GitHub forks](https://img.shields.io/github/forks/Neuri-AI/qyro)
-![GitHub stars](https://img.shields.io/github/stars/Neuri-AI/qyro)
+![GitHub Release](https://img.shields.io/github/v/release/Neuri-AI/qyro-cli?include_prereleases&display_name=release&color=stable)
+![GitHub Issues](https://img.shields.io/github/issues/Neuri-AI/qyro-cli)
+![GitHub Issues Closed](https://img.shields.io/github/issues-closed/Neuri-AI/qyro-cli?color=green)
+![GitHub forks](https://img.shields.io/github/forks/Neuri-AI/qyro-cli)
+![GitHub stars](https://img.shields.io/github/stars/Neuri-AI/qyro-cli)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Sponsor](https://img.shields.io/badge/Sponsor-Buy%20Me%20a%20Coffee-FFDD00?logo=buymeacoffee&logoColor=000000)](https://buymeacoffee.com/neuri)
 

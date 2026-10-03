@@ -14,7 +14,7 @@
 > packaging is experimental and is not part of the supported production
 > workflow.
 
-# ⚡ Qyro CLI
+# Qyro CLI
 
 > **The official developer CLI and project orchestrator for the
 > [Qyro](https://github.com/Neuri-AI/qyro) desktop and mobile application
@@ -40,20 +40,20 @@
 
 ---
 
-## ✨ Features
+## Features
 
-- **⚡ Unified Multi-Framework Support:** Scaffold projects for **PySide6**,
+- Unified Multi-Framework Support:** Scaffold projects for **PySide6**,
   **PyQt6**, **PyQt5**, **PySide2**, **Kivy**, or **Tkinter**.
-- **🔄 Smart Template Resolution:** Uses template providers with fallback
+- Smart Template Resolution:** Uses template providers with fallback
   support for robust initialization workflows.
-- **❄️ Packaging & Freezing Ready:** Native desktop freezing with PyInstaller.
-- **📦 Distribution Bundling:** Platform-aware bundling for DMG, NSIS, and
+- Packaging & Freezing Ready:** Native desktop freezing with PyInstaller.
+- Distribution Bundling:** Platform-aware bundling for DMG, NSIS, and
   Linux package formats.
-- **🔐 Code Signing & Notarization:** Windows Authenticode and macOS signing
+- Code Signing & Notarization:** Windows Authenticode and macOS signing
   with optional notarization and stapling.
-- **✅ Release Preflight Checks:** Validate dependencies and `release.json`
+- Release Preflight Checks:** Validate dependencies and `release.json`
   paths and options before packaging.
-- **🧹 Artifact Cleanup:** Clean build outputs and optional release outputs with
+- Artifact Cleanup:** Clean build outputs and optional release outputs with
   one command.
 
 ---
@@ -106,7 +106,7 @@ framework, dependency state, and CI environment used during testing.
 
 ---
 
-## 🚀 Installation
+## Installation
 
 ### Supported desktop installation
 
@@ -585,7 +585,7 @@ revision or operating-system update.
 
 ---
 
-## 🎛️ CLI Commands Reference
+## CLI Commands Reference
 
 Commands marked as requiring a project must be run from a generated Qyro
 project directory.
@@ -602,7 +602,7 @@ project directory.
 
 ---
 
-## ⚙️ Bundle configuration
+## Bundle configuration
 
 Projects can configure bundle behavior in:
 
@@ -669,7 +669,7 @@ Without custom DMG options, bundling can fall back to native `hdiutil` on macOS.
 
 ---
 
-## 🧰 Packaging dependencies
+## Packaging dependencies
 
 | Format | Requirement |
 | :--- | :--- |
@@ -692,7 +692,7 @@ npm install -g create-dmg
 
 ---
 
-## 🖼️ Supported framework ecosystem
+## Supported framework ecosystem
 
 `qyro-cli` generates applications that integrate with Qyro adapters:
 
@@ -711,7 +711,7 @@ npm install -g create-dmg
 
 ---
 
-## 🔌 Built-in add-ons
+## Built-in add-ons
 
 Projects can be configured with modular add-ons:
 
@@ -722,7 +722,7 @@ Projects can be configured with modular add-ons:
 
 ---
 
-## 📝 Notes for developers
+## Notes for developers
 
 - `qyro bundle --check` is the fastest way to validate release readiness in CI.
 - `qyro clean --release` is useful before reproducible release builds.

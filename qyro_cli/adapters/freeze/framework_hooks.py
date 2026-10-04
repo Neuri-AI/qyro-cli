@@ -257,6 +257,9 @@ class FrameworkHookResolver(FrameworkHookResolverPort):
         args: List[str] = []
         sep = self._data_separator(manifest)
 
+        if manifest.protect_resources:
+            return args
+
         resources_dir_name = manifest.resources_dir or "resources"
         resources_path = (project_root / resources_dir_name).resolve()
 

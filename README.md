@@ -47,6 +47,7 @@
 - Smart Template Resolution:** Uses template providers with fallback
   support for robust initialization workflows.
 - Packaging & Freezing Ready:** Native desktop freezing with PyInstaller.
+- Protected Resource Encryption:** Optional encrypted packaging for `settings/` and `resources/` with per-build runtime secrets compiled via Cython.
 - Distribution Bundling:** Platform-aware bundling for DMG, NSIS, and
   Linux package formats.
 - Code Signing & Notarization:** Windows Authenticode and macOS signing
@@ -127,6 +128,10 @@ pip install qyro-cli
 # Using Poetry
 poetry add qyro-cli
 ```
+
+> [!IMPORTANT]
+> Resource protection encryption requires the desktop extra because it uses
+> Cython during build to compile the runtime secret module.
 
 ### Experimental mobile installation
 
@@ -288,6 +293,43 @@ qyro build --target linux
 # Additional controls
 qyro build --debug --console --uac --clean --interactive
 ```
+
+### Protected resource encryption
+
+Qyro can protect project resources during `qyro build` by encrypting
+`settings/` and `resources/` into a single protected package.
+
+Enable in `settings/release.json`:
+
+```json
+{
+  "resource_protection": {
+    "enabled": true,
+    "settings_dir": "settings",
+    "resources_dir": "resources",
+    "bundle_path": ".qyro/protected_resources.pak"
+  }
+}
+```
+
+When enabled, Qyro:
+
+- Generates a random secret for each build.
+- Compiles a native `runtime` module with Cython (no plaintext `.py` secret in output).
+- Wraps the resource key with that runtime secret.
+- Embeds the protected package and compiled runtime module into the frozen app.
+
+Output artifacts inside the app bundle/freeze layout include:
+
+- `.qyro/protected_resources.pak`
+- `.qyro/runtime*.so` on macOS/Linux or `.qyro/runtime*.pyd` on Windows
+
+Notes:
+
+- This is anti-tampering/anti-casual-extraction protection, not absolute
+  cryptographic secrecy against determined reverse engineering.
+- Cython compilation requires a working native toolchain on the build machine
+  (for example, Xcode CLT on macOS or Build Tools on Windows).
 
 > [!NOTE]
 > Available `--target` values are desktop platforms only: `mac`, `windows`,

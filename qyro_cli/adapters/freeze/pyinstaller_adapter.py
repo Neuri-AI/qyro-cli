@@ -6,11 +6,15 @@ runs the PyInstaller process cleanly, and captures output artifacts.
 """
 
 import fnmatch
+import hashlib
+import hmac
 import os
+import secrets
 import shutil
 import subprocess
 import sys
 import time
+import zipfile
 from pathlib import Path
 from typing import List, Optional
 
@@ -31,6 +35,11 @@ from qyro_cli.domain.errors import QyroError, FreezeExecutionError
 
 class PyInstallerFreezer(FreezerPort):
     """Clean Architecture adapter wrapping PyInstaller executable."""
+
+    _RESOURCE_PACK_MAGIC = b"QYRPKG"
+    _RESOURCE_SALT_LEN = 16
+    _RESOURCE_KEY_LEN = 32
+    _RUNTIME_SECRET_MODULE_STEM = "runtime"
 
     def __init__(
         self,
@@ -128,6 +137,15 @@ class PyInstallerFreezer(FreezerPort):
         # Framework-specific hooks (Qt, Kivy, Tkinter, resources)
         framework_args = self._resolver.resolve_args(project_root, manifest)
         cmd.extend(framework_args)
+
+        if manifest.protect_resources:
+            package_path, runtime_secret_module_path = self._prepare_protected_resources_package(
+                project_root=project_root,
+                manifest=manifest,
+            )
+            sep = ";" if manifest.target_platform == "windows" else ":"
+            cmd.extend(["--add-data", f"{package_path.as_posix()}{sep}.qyro"])
+            cmd.extend(["--add-data", f"{runtime_secret_module_path.as_posix()}{sep}.qyro"])
 
         # Optimization configurations
         if manifest.optimization.clean_build:
@@ -308,7 +326,7 @@ class PyInstallerFreezer(FreezerPort):
             app_bundle = dist_dir / f"{manifest.app_name}.app"
             if app_bundle.exists():
                 self._remove_unwanted_pyinstaller_files(app_bundle)
-                self._copy_mac_resources(project_root, app_bundle)
+                self._copy_mac_resources(project_root, app_bundle, manifest)
 
         # Calculate output executable path and size
         if manifest.bundle_mode == BundleMode.ONEFILE:
@@ -358,6 +376,167 @@ class PyInstallerFreezer(FreezerPort):
             if entry.is_file():
                 total += entry.stat().st_size
         return total
+
+    def _prepare_protected_resources_package(
+        self,
+        *,
+        project_root: Path,
+        manifest: FreezeManifest,
+    ) -> tuple[Path, Path]:
+        settings_dir = (project_root / manifest.protected_settings_dir).resolve()
+        resources_dir = (project_root / manifest.protected_resources_dir).resolve()
+        package_path = (project_root / manifest.protected_bundle_relative_path).resolve()
+        runtime_secret_module_path = self._runtime_secret_binary_path(package_path.parent)
+
+        package_path.parent.mkdir(parents=True, exist_ok=True)
+
+        entries: list[tuple[Path, str]] = []
+        if settings_dir.exists() and settings_dir.is_dir():
+            for source in sorted(settings_dir.rglob("*")):
+                if source.is_file():
+                    rel = source.relative_to(settings_dir).as_posix()
+                    entries.append((source, f"settings/{rel}"))
+
+        if resources_dir.exists() and resources_dir.is_dir():
+            for source in sorted(resources_dir.rglob("*")):
+                if source.is_file():
+                    rel = source.relative_to(resources_dir).as_posix()
+                    entries.append((source, f"resources/{rel}"))
+
+        if not entries:
+            raise QyroError(
+                "Resource protection is enabled, but no files were found in settings/ or resources/.",
+                hint="Add files to settings/ or resources/, or disable resource_protection.enabled.",
+            )
+
+        runtime_secret, runtime_secret_module_path = self._write_runtime_secret_module(runtime_secret_module_path)
+        zip_payload = self._build_zip_payload(entries)
+        resource_key = secrets.token_bytes(self._RESOURCE_KEY_LEN)
+        salt = secrets.token_bytes(self._RESOURCE_SALT_LEN)
+        nonce = secrets.token_bytes(16)
+        ciphertext = self._xor_keystream(zip_payload, key=resource_key, nonce=nonce)
+        tag = hmac.new(resource_key, nonce + ciphertext, hashlib.sha256).digest()
+        wrapped_key = self._wrap_key(resource_key=resource_key, salt=salt, runtime_secret=runtime_secret)
+
+        package_path.write_bytes(self._RESOURCE_PACK_MAGIC + salt + wrapped_key + nonce + tag + ciphertext)
+        return package_path, runtime_secret_module_path
+
+    def _runtime_secret_binary_path(self, output_dir: Path) -> Path:
+        existing = self._find_runtime_secret_binary(output_dir)
+        if existing is not None:
+            return existing
+
+        suffix = ".pyd" if sys.platform.startswith("win") else ".so"
+        return output_dir / f"{self._RUNTIME_SECRET_MODULE_STEM}{suffix}"
+
+    def _find_runtime_secret_binary(self, output_dir: Path) -> Path | None:
+        candidates = [
+            *sorted(output_dir.glob(f"{self._RUNTIME_SECRET_MODULE_STEM}*.so")),
+            *sorted(output_dir.glob(f"{self._RUNTIME_SECRET_MODULE_STEM}*.pyd")),
+            *sorted(output_dir.glob(f"{self._RUNTIME_SECRET_MODULE_STEM}*.dylib")),
+        ]
+        for candidate in candidates:
+            if candidate.is_file():
+                return candidate
+        return None
+
+    def _write_runtime_secret_module(self, runtime_secret_module_path: Path) -> tuple[bytes, Path]:
+        runtime_secret = secrets.token_bytes(self._RESOURCE_KEY_LEN)
+        output_dir = runtime_secret_module_path.parent
+        source_path = output_dir / f"{self._RUNTIME_SECRET_MODULE_STEM}.py"
+        existing = self._find_runtime_secret_binary(output_dir)
+        if existing is not None:
+            existing.unlink(missing_ok=True)
+
+        content = (
+            "# Auto-generated by Qyro freeze. Do not commit.\n"
+            f"RUNTIME_SECRET_HEX = \"{runtime_secret.hex()}\"\n"
+        )
+        source_path.write_text(content, encoding="utf-8")
+
+        compile_cmd = [
+            sys.executable,
+            "-m",
+            "Cython.Build.Cythonize",
+            "-3",
+            "-i",
+            source_path.name,
+        ]
+
+        proc = subprocess.run(
+            compile_cmd,
+            cwd=str(output_dir),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+        if proc.returncode != 0:
+            output = (proc.stdout or "").strip()
+            tail = "\n".join(output.splitlines()[-20:]) if output else "No compiler output captured."
+            raise QyroError(
+                "Failed to compile protected runtime module with Cython.",
+                hint=(
+                    "Install qyro-cli with the desktop extra and ensure a C compiler is available.\n"
+                    f"Cython output (last lines):\n{tail}"
+                ),
+            )
+
+        compiled = self._find_runtime_secret_binary(output_dir)
+        if compiled is None:
+            raise QyroError(
+                "Cython compilation completed but runtime secret binary was not found.",
+                hint="Check Cython build output and toolchain availability.",
+            )
+
+        c_artifact = source_path.with_suffix(".c")
+        c_artifact.unlink(missing_ok=True)
+        source_path.unlink(missing_ok=True)
+        return runtime_secret, compiled
+
+    def _wrap_key(self, *, resource_key: bytes, salt: bytes, runtime_secret: bytes) -> bytes:
+        mask = self._keystream(seed=self._master_seed(salt, runtime_secret), size=len(resource_key))
+        return bytes(value ^ mask[i] for i, value in enumerate(resource_key))
+
+    def _master_seed(self, salt: bytes, runtime_secret: bytes) -> bytes:
+        return hashlib.sha256(runtime_secret + salt).digest()
+
+    def _keystream(self, *, seed: bytes, size: int) -> bytes:
+        blocks: list[bytes] = []
+        index = 0
+        total = 0
+        while total < size:
+            block = hashlib.sha256(seed + index.to_bytes(8, "big")).digest()
+            blocks.append(block)
+            total += len(block)
+            index += 1
+        return b"".join(blocks)[:size]
+
+    def _build_zip_payload(self, entries: list[tuple[Path, str]]) -> bytes:
+        import io
+
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            for source, archive_name in entries:
+                archive.write(source, archive_name)
+        return buffer.getvalue()
+
+    def _xor_keystream(self, data: bytes, *, key: bytes, nonce: bytes) -> bytes:
+        out = bytearray(len(data))
+        block_index = 0
+        offset = 0
+
+        while offset < len(data):
+            block_seed = nonce + block_index.to_bytes(8, "big")
+            stream = hashlib.sha256(key + block_seed).digest()
+            chunk = data[offset:offset + len(stream)]
+
+            for i, value in enumerate(chunk):
+                out[offset + i] = value ^ stream[i]
+
+            offset += len(chunk)
+            block_index += 1
+
+        return bytes(out)
 
     def _handle_mac_icon(
         self,
@@ -519,8 +698,11 @@ class PyInstallerFreezer(FreezerPort):
                 except OSError:
                     pass
 
-    def _copy_mac_resources(self, project_root: Path, app_bundle: Path) -> None:
+    def _copy_mac_resources(self, project_root: Path, app_bundle: Path, manifest: FreezeManifest) -> None:
         """Copies resources to Contents/Resources inside the .app bundle."""
+        if manifest.protect_resources:
+            return
+
         res_dest = app_bundle / "Contents" / "Resources"
         res_dest.mkdir(parents=True, exist_ok=True)
 

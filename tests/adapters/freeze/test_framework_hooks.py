@@ -24,6 +24,10 @@ def test_pyside2_collects_runtime_binaries_and_data():
 def test_build_command_includes_windows_qt_runtime_paths(tmp_path):
     project_root = tmp_path
     (project_root / "main.py").write_text("print('hello')\n", encoding="utf-8")
+    settings_dir = project_root / "settings"
+    settings_dir.mkdir(parents=True)
+    (settings_dir / "base.json").write_text('{"app_name":"MyApp"}', encoding="utf-8")
+    (settings_dir / "secrets.json").write_text('{"token":"x"}', encoding="utf-8")
 
     freezer = PyInstallerFreezer(FrameworkHookResolver())
     manifest = FreezeManifest(
@@ -64,6 +68,32 @@ def test_framework_hooks_skip_plain_assets_when_protection_enabled(tmp_path):
     assert not any(value.endswith(":resources") or value.endswith(";resources") for value in add_data_values)
 
 
+def test_framework_hooks_excludes_plain_secrets_when_protection_disabled(tmp_path):
+    project_root = tmp_path
+    settings_dir = project_root / "settings"
+    resources_dir = project_root / "resources"
+    settings_dir.mkdir(parents=True)
+    resources_dir.mkdir(parents=True)
+    (settings_dir / "base.json").write_text("{}", encoding="utf-8")
+    (settings_dir / "secrets.json").write_text('{"password":"local"}', encoding="utf-8")
+    (resources_dir / "logo.png").write_text("bin", encoding="utf-8")
+
+    resolver = FrameworkHookResolver()
+    manifest = FreezeManifest(
+        app_name="MyApp",
+        binding="PySide2",
+        entry_point="main.py",
+        target_platform="windows",
+        protect_resources=False,
+    )
+
+    args = resolver.resolve_args(project_root, manifest)
+    add_data_values = [args[i + 1] for i, token in enumerate(args) if token == "--add-data"]
+
+    assert any("base.json" in value for value in add_data_values)
+    assert not any("secrets.json" in value for value in add_data_values)
+
+
 def test_build_command_embeds_protected_bundle_and_runtime_module(tmp_path):
     project_root = tmp_path
     (project_root / "main.py").write_text("print('hello')\n", encoding="utf-8")
@@ -72,6 +102,7 @@ def test_build_command_embeds_protected_bundle_and_runtime_module(tmp_path):
     settings_dir.mkdir(parents=True)
     resources_dir.mkdir(parents=True)
     (settings_dir / "base.json").write_text('{"app_name": "MyApp"}', encoding="utf-8")
+    (settings_dir / "secrets.json").write_text('{"api": {"token": "local-secret"}}', encoding="utf-8")
     (resources_dir / "logo.png").write_text("png", encoding="utf-8")
 
     freezer = PyInstallerFreezer(FrameworkHookResolver())
@@ -86,15 +117,18 @@ def test_build_command_embeds_protected_bundle_and_runtime_module(tmp_path):
     cmd = freezer.build_command(project_root, manifest)
 
     pak_path = project_root / ".qyro" / "protected_resources.pak"
+    external_secrets_path = project_root / ".qyro" / "secrets.json"
     runtime_dir = project_root / ".qyro"
 
     assert pak_path.exists()
+    assert not external_secrets_path.exists()
     runtime_candidates = list(runtime_dir.glob("runtime*.so")) + list(runtime_dir.glob("runtime*.pyd"))
     assert runtime_candidates
     assert "--add-data" in cmd
     add_data_values = [cmd[i + 1] for i, token in enumerate(cmd) if token == "--add-data"]
     assert any(".qyro/protected_resources.pak" in value for value in add_data_values)
     assert any(".qyro/runtime" in value and (".so" in value or ".pyd" in value) for value in add_data_values)
+    assert not any(".qyro/secrets.json" in value for value in add_data_values)
 
 
 def test_copy_mac_resources_skips_plain_resources_when_protected(tmp_path):

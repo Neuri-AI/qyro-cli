@@ -319,6 +319,16 @@ When enabled, Qyro:
 - Wraps the resource key with that runtime secret.
 - Embeds the protected package and compiled runtime module into the frozen app.
 
+`protected_resources.pak` keeps its current internal mechanism for `settings/`
+and `resources/`.
+
+`settings/secrets.json` is handled separately with authenticated cryptography:
+
+- AES-256-GCM encryption.
+- HKDF-SHA256 key derivation from `RUNTIME_SECRET_HEX` and a random salt.
+- Random 12-byte nonce per encryption.
+- Versioned binary payload format (`QYRSEC` header) for future compatibility.
+
 Output artifacts inside the app bundle/freeze layout include:
 
 - `.qyro/protected_resources.pak`
@@ -328,6 +338,9 @@ Notes:
 
 - This is anti-tampering/anti-casual-extraction protection, not absolute
   cryptographic secrecy against determined reverse engineering.
+- Encryption of `secrets.json` protects embedded secrets at rest, but it does
+  not provide absolute protection against an attacker who can execute, debug,
+  or reverse engineer the application.
 - Cython compilation requires a working native toolchain on the build machine
   (for example, Xcode CLT on macOS or Build Tools on Windows).
 
@@ -584,6 +597,12 @@ Qyro supports a local-only secrets file:
 
 Qyro loads base and profile settings first, then applies `secrets.json` as the
 highest-precedence override.
+
+When protected resources are enabled for build, Qyro encrypts
+`settings/secrets.json` with AES-256-GCM and embeds it inside
+`protected_resources.pak` as an internal payload (for example,
+`.qyro/secrets.enc` inside the package ZIP).
+No standalone `.qyro/secrets.json` file is emitted in the distributed app.
 
 Example `settings/secrets.json`:
 

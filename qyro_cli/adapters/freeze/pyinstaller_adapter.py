@@ -8,6 +8,7 @@ runs the PyInstaller process cleanly, and captures output artifacts.
 import fnmatch
 import hashlib
 import hmac
+import json
 import os
 import secrets
 import shutil
@@ -30,6 +31,7 @@ from qyro_cli.domain.build import (
     FreezeManifest
 )
 from PIL import Image
+from qyro_cli.adapters.freeze.secrets_crypto import encrypt_secrets_payload
 from qyro_cli.domain.errors import QyroError, FreezeExecutionError
 
 
@@ -40,6 +42,8 @@ class PyInstallerFreezer(FreezerPort):
     _RESOURCE_SALT_LEN = 16
     _RESOURCE_KEY_LEN = 32
     _RUNTIME_SECRET_MODULE_STEM = "runtime"
+    _SECRETS_FILE_NAME = "secrets.json"
+    _SECRETS_ARCHIVE_PATH = ".qyro/secrets.enc"
 
     def __init__(
         self,
@@ -143,9 +147,15 @@ class PyInstallerFreezer(FreezerPort):
                 project_root=project_root,
                 manifest=manifest,
             )
-            sep = ";" if manifest.target_platform == "windows" else ":"
-            cmd.extend(["--add-data", f"{package_path.as_posix()}{sep}.qyro"])
-            cmd.extend(["--add-data", f"{runtime_secret_module_path.as_posix()}{sep}.qyro"])
+        else:
+            package_path, runtime_secret_module_path = self._prepare_protected_secrets_package(
+                project_root=project_root,
+                manifest=manifest,
+            )
+
+        sep = ";" if manifest.target_platform == "windows" else ":"
+        cmd.extend(["--add-data", f"{package_path.as_posix()}{sep}.qyro"])
+        cmd.extend(["--add-data", f"{runtime_secret_module_path.as_posix()}{sep}.qyro"])
 
         # Optimization configurations
         if manifest.optimization.clean_build:
@@ -387,13 +397,17 @@ class PyInstallerFreezer(FreezerPort):
         resources_dir = (project_root / manifest.protected_resources_dir).resolve()
         package_path = (project_root / manifest.protected_bundle_relative_path).resolve()
         runtime_secret_module_path = self._runtime_secret_binary_path(package_path.parent)
+        secrets_source_path = settings_dir / self._SECRETS_FILE_NAME
 
         package_path.parent.mkdir(parents=True, exist_ok=True)
 
         entries: list[tuple[Path, str]] = []
+        memory_entries: list[tuple[str, bytes]] = []
         if settings_dir.exists() and settings_dir.is_dir():
             for source in sorted(settings_dir.rglob("*")):
                 if source.is_file():
+                    if source.resolve() == secrets_source_path.resolve():
+                        continue
                     rel = source.relative_to(settings_dir).as_posix()
                     entries.append((source, f"settings/{rel}"))
 
@@ -403,14 +417,69 @@ class PyInstallerFreezer(FreezerPort):
                     rel = source.relative_to(resources_dir).as_posix()
                     entries.append((source, f"resources/{rel}"))
 
-        if not entries:
+        runtime_secret, runtime_secret_module_path = self._write_runtime_secret_module(runtime_secret_module_path)
+
+        has_secrets = secrets_source_path.exists() and secrets_source_path.is_file()
+        if secrets_source_path.exists() and secrets_source_path.is_file():
+            encrypted_payload = self._encrypt_project_secrets(
+                secrets_source_path=secrets_source_path,
+                runtime_secret=runtime_secret,
+            )
+            memory_entries.append((self._SECRETS_ARCHIVE_PATH, encrypted_payload))
+
+        if not entries and not has_secrets:
             raise QyroError(
                 "Resource protection is enabled, but no files were found in settings/ or resources/.",
                 hint="Add files to settings/ or resources/, or disable resource_protection.enabled.",
             )
 
+        zip_payload = self._build_zip_payload(entries, memory_entries)
+        self._write_protected_package_payload(
+            package_path=package_path,
+            zip_payload=zip_payload,
+            runtime_secret=runtime_secret,
+        )
+        return package_path, runtime_secret_module_path
+
+    def _prepare_protected_secrets_package(
+        self,
+        *,
+        project_root: Path,
+        manifest: FreezeManifest,
+    ) -> tuple[Path, Path]:
+        settings_dir = (project_root / manifest.protected_settings_dir).resolve()
+        package_path = (project_root / manifest.protected_bundle_relative_path).resolve()
+        runtime_secret_module_path = self._runtime_secret_binary_path(package_path.parent)
+        secrets_source_path = settings_dir / self._SECRETS_FILE_NAME
+
+        if not secrets_source_path.exists() or not secrets_source_path.is_file():
+            raise QyroError(
+                "settings/secrets.json is required for frozen builds.",
+                hint="Create settings/secrets.json with a JSON object before running qyro build.",
+            )
+
+        package_path.parent.mkdir(parents=True, exist_ok=True)
         runtime_secret, runtime_secret_module_path = self._write_runtime_secret_module(runtime_secret_module_path)
-        zip_payload = self._build_zip_payload(entries)
+        encrypted_payload = self._encrypt_project_secrets(
+            secrets_source_path=secrets_source_path,
+            runtime_secret=runtime_secret,
+        )
+
+        zip_payload = self._build_zip_payload([], [(self._SECRETS_ARCHIVE_PATH, encrypted_payload)])
+        self._write_protected_package_payload(
+            package_path=package_path,
+            zip_payload=zip_payload,
+            runtime_secret=runtime_secret,
+        )
+        return package_path, runtime_secret_module_path
+
+    def _write_protected_package_payload(
+        self,
+        *,
+        package_path: Path,
+        zip_payload: bytes,
+        runtime_secret: bytes,
+    ) -> None:
         resource_key = secrets.token_bytes(self._RESOURCE_KEY_LEN)
         salt = secrets.token_bytes(self._RESOURCE_SALT_LEN)
         nonce = secrets.token_bytes(16)
@@ -419,7 +488,35 @@ class PyInstallerFreezer(FreezerPort):
         wrapped_key = self._wrap_key(resource_key=resource_key, salt=salt, runtime_secret=runtime_secret)
 
         package_path.write_bytes(self._RESOURCE_PACK_MAGIC + salt + wrapped_key + nonce + tag + ciphertext)
-        return package_path, runtime_secret_module_path
+
+    def _encrypt_project_secrets(
+        self,
+        *,
+        secrets_source_path: Path,
+        runtime_secret: bytes,
+    ) -> bytes:
+        raw_text = secrets_source_path.read_text(encoding="utf-8")
+        if not raw_text.strip():
+            raise QyroError(
+                "settings/secrets.json is empty.",
+                hint="Provide a valid JSON object or remove settings/secrets.json before building.",
+            )
+
+        try:
+            parsed = json.loads(raw_text)
+        except json.JSONDecodeError as exc:
+            raise QyroError(
+                "settings/secrets.json is not valid JSON.",
+                hint="Fix settings/secrets.json syntax before building.",
+            ) from exc
+
+        if not isinstance(parsed, dict):
+            raise QyroError(
+                "settings/secrets.json must contain a JSON object.",
+                hint="Wrap secret keys under an object at the root of settings/secrets.json.",
+            )
+
+        return encrypt_secrets_payload(raw_text.encode("utf-8"), runtime_secret)
 
     def _runtime_secret_binary_path(self, output_dir: Path) -> Path:
         existing = self._find_runtime_secret_binary(output_dir)
@@ -511,13 +608,19 @@ class PyInstallerFreezer(FreezerPort):
             index += 1
         return b"".join(blocks)[:size]
 
-    def _build_zip_payload(self, entries: list[tuple[Path, str]]) -> bytes:
+    def _build_zip_payload(
+        self,
+        entries: list[tuple[Path, str]],
+        memory_entries: list[tuple[str, bytes]] | None = None,
+    ) -> bytes:
         import io
 
         buffer = io.BytesIO()
         with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for source, archive_name in entries:
                 archive.write(source, archive_name)
+            for archive_name, data in memory_entries or []:
+                archive.writestr(archive_name, data)
         return buffer.getvalue()
 
     def _xor_keystream(self, data: bytes, *, key: bytes, nonce: bytes) -> bytes:

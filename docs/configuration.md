@@ -321,20 +321,20 @@ Choosing another `platform` configures a manifest; it does not provide cross-com
     "bundle_path": ".qyro/protected_resources.pak"
   },
   "bundle": {
-    "extra_files": [
-      "README.md",
-      {
-        "source": "docs/RELEASE_NOTES.md",
-        "destination": "docs/RELEASE_NOTES.md"
-      }
-    ],
     "dmg": {
       "window": {"x": 200, "y": 120},
       "window_size": {"width": 660, "height": 420},
       "icon_size": 120,
       "app_position": {"x": 180, "y": 180},
       "applications_position": {"x": 480, "y": 180},
-      "background": "assets/dmg-background.jpg"
+      "background": "assets/dmg-background.jpg",
+      "extra_files": [
+        "README.md",
+        {
+          "source": "docs/RELEASE_NOTES.md",
+          "destination": "docs/RELEASE_NOTES.md"
+        }
+      ]
     },
     "nsis": {
       "icons": {
@@ -380,6 +380,9 @@ Run `qyro bundle --check` to validate these paths without packaging.
 | `app_position` | `{x, y}` | App icon position; `app_icon_position` is an alias. |
 | `applications_position` | `{x, y}` | Applications link position; `app_drop_link` is an alias. |
 | `background` | path | Existing background image. |
+| `extra_files` | list | Files or directories included at the DMG root. Uses the same string/object forms as `bundle.extra_files`. |
+
+`bundle.dmg.extra_files` is copied into the DMG staging directory, so it is included in the final image. It requires `create-dmg`; Qyro rejects this option when it would otherwise fall back to `hdiutil`, because that path does not support these files. Generic `bundle.extra_files` remains outside the DMG and is intended for `dir`, ZIP, and tarball releases.
 
 Any custom DMG option requires `create-dmg`. With no customization, Qyro can fall back to macOS `hdiutil`.
 

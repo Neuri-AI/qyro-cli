@@ -720,15 +720,15 @@ Example:
         "x": 480,
         "y": 180
       },
-      "background": "assets/dmg-background.jpg"
-    },
-    "extra_files": [
-      "README.md",
-      {
-        "source": "docs/RELEASE_NOTES.md",
-        "destination": "docs/RELEASE_NOTES.md"
-      }
-    ]
+      "background": "assets/dmg-background.jpg",
+      "extra_files": [
+        "README.md",
+        {
+          "source": "docs/RELEASE_NOTES.md",
+          "destination": "docs/RELEASE_NOTES.md"
+        }
+      ]
+    }
   }
 }
 ```
@@ -750,9 +750,15 @@ Validation rules:
 
 ### `bundle.dmg`
 
+`bundle.dmg.extra_files` copies files into the DMG and therefore requires
+`create-dmg`. Each entry uses the same string or `{ "source", "destination" }`
+shape as `bundle.extra_files`.
+
 When DMG customization is configured, `create-dmg` is required.
 
 Without custom DMG options, bundling can fall back to native `hdiutil` on macOS.
+`hdiutil` does not support `bundle.dmg.extra_files`, so Qyro rejects that
+configuration rather than generating a DMG without the requested files.
 
 ---
 

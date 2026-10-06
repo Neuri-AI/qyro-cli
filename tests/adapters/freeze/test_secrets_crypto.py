@@ -6,6 +6,7 @@ import io
 import json
 import logging
 from pathlib import Path
+from types import SimpleNamespace
 import zipfile
 
 import pytest
@@ -105,6 +106,30 @@ def test_encrypt_project_secrets_rejects_invalid_json(tmp_path: Path) -> None:
             secrets_source_path=source,
             runtime_secret=b"j" * 32,
         )
+
+
+@pytest.mark.parametrize("returncode", [0, 1])
+def test_runtime_secret_sources_are_removed_when_cython_cannot_produce_binary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    returncode: int,
+) -> None:
+    freezer = PyInstallerFreezer(FrameworkHookResolver())
+
+    def fake_run(*_args, **_kwargs):
+        (tmp_path / "runtime.c").write_text("contains generated code", encoding="utf-8")
+        return SimpleNamespace(returncode=returncode, stdout="compiler failed")
+
+    monkeypatch.setattr(
+        "qyro_cli.adapters.freeze.pyinstaller_adapter.subprocess.run",
+        fake_run,
+    )
+
+    with pytest.raises(QyroError):
+        freezer._write_runtime_secret_module(tmp_path / "runtime.pyd")
+
+    assert not (tmp_path / "runtime.py").exists()
+    assert not (tmp_path / "runtime.c").exists()
 
 
 @pytest.mark.parametrize(

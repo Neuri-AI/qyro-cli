@@ -32,6 +32,7 @@ from qyro_cli.domain.build import (
 )
 from PIL import Image
 from qyro_cli.adapters.freeze.secrets_crypto import encrypt_secrets_payload
+from qyro_cli.adapters.persistence.storage import SIGNING_SETTING_KEYS
 from qyro_cli.domain.errors import QyroError, FreezeExecutionError
 
 
@@ -44,25 +45,6 @@ class PyInstallerFreezer(FreezerPort):
     _RUNTIME_SECRET_MODULE_STEM = "runtime"
     _SECRETS_FILE_NAME = "secrets.json"
     _SIGN_FILE_NAME = "sign.json"
-    _SIGNING_SETTING_KEYS = {
-        "sign",
-        "windows_sign_certificate",
-        "windows_sign_pass",
-        "windows_sign_server",
-        "windows_sign_description",
-        "mac_sign_identity",
-        "mac_sign_entitlements",
-        "mac_sign_notarize",
-        "mac_sign_staple",
-        "mac_sign_assess",
-        "mac_sign_notary_profile",
-        "mac_sign_notary_key",
-        "mac_sign_notary_key_id",
-        "mac_sign_notary_issuer",
-        "mac_sign_apple_id",
-        "mac_sign_team_id",
-        "mac_sign_app_password",
-    }
     _SECRETS_ARCHIVE_PATH = ".qyro/secrets.enc"
 
     def __init__(
@@ -444,7 +426,7 @@ class PyInstallerFreezer(FreezerPort):
         runtime_secret, runtime_secret_module_path = self._write_runtime_secret_module(runtime_secret_module_path)
 
         has_secrets = secrets_source_path.exists() and secrets_source_path.is_file()
-        if secrets_source_path.exists() and secrets_source_path.is_file():
+        if has_secrets:
             encrypted_payload = self._encrypt_project_secrets(
                 secrets_source_path=secrets_source_path,
                 runtime_secret=runtime_secret,
@@ -540,7 +522,7 @@ class PyInstallerFreezer(FreezerPort):
                 hint="Wrap secret keys under an object at the root of settings/secrets.json.",
             )
 
-        signing_keys = sorted(self._SIGNING_SETTING_KEYS.intersection(parsed))
+        signing_keys = sorted(SIGNING_SETTING_KEYS.intersection(parsed))
         if signing_keys:
             raise QyroError(
                 "settings/secrets.json contains signing configuration.",
@@ -594,35 +576,37 @@ class PyInstallerFreezer(FreezerPort):
             source_path.name,
         ]
 
-        proc = subprocess.run(
-            compile_cmd,
-            cwd=str(output_dir),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-        )
-        if proc.returncode != 0:
-            output = (proc.stdout or "").strip()
-            tail = "\n".join(output.splitlines()[-20:]) if output else "No compiler output captured."
-            raise QyroError(
-                "Failed to compile protected runtime module with Cython.",
-                hint=(
-                    "Install qyro-cli with the desktop extra and ensure a C compiler is available.\n"
-                    f"Cython output (last lines):\n{tail}"
-                ),
-            )
-
-        compiled = self._find_runtime_secret_binary(output_dir)
-        if compiled is None:
-            raise QyroError(
-                "Cython compilation completed but runtime secret binary was not found.",
-                hint="Check Cython build output and toolchain availability.",
-            )
-
         c_artifact = source_path.with_suffix(".c")
-        c_artifact.unlink(missing_ok=True)
-        source_path.unlink(missing_ok=True)
-        return runtime_secret, compiled
+        try:
+            proc = subprocess.run(
+                compile_cmd,
+                cwd=str(output_dir),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+            )
+            if proc.returncode != 0:
+                output = (proc.stdout or "").strip()
+                tail = "\n".join(output.splitlines()[-20:]) if output else "No compiler output captured."
+                raise QyroError(
+                    "Failed to compile protected runtime module with Cython.",
+                    hint=(
+                        "Install qyro-cli with the desktop extra and ensure a C compiler is available.\n"
+                        f"Cython output (last lines):\n{tail}"
+                    ),
+                )
+
+            compiled = self._find_runtime_secret_binary(output_dir)
+            if compiled is None:
+                raise QyroError(
+                    "Cython compilation completed but runtime secret binary was not found.",
+                    hint="Check Cython build output and toolchain availability.",
+                )
+
+            return runtime_secret, compiled
+        finally:
+            c_artifact.unlink(missing_ok=True)
+            source_path.unlink(missing_ok=True)
 
     def _wrap_key(self, *, resource_key: bytes, salt: bytes, runtime_secret: bytes) -> bytes:
         mask = self._keystream(seed=self._master_seed(salt, runtime_secret), size=len(resource_key))

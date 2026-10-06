@@ -25,6 +25,7 @@ class FrameworkHookResolver(FrameworkHookResolverPort):
     """
 
     _SECRETS_FILE_NAME = "secrets.json"
+    _SIGN_FILE_NAME = "sign.json"
 
     def resolve_args(
         self,
@@ -296,7 +297,10 @@ class FrameworkHookResolver(FrameworkHookResolverPort):
             for source in sorted(settings_path.rglob("*")):
                 if not source.is_file():
                     continue
-                if source.name.lower() == self._SECRETS_FILE_NAME:
+                if source.name.lower() in {
+                    self._SECRETS_FILE_NAME,
+                    self._SIGN_FILE_NAME,
+                }:
                     continue
 
                 rel_parent = source.relative_to(settings_path).parent.as_posix()

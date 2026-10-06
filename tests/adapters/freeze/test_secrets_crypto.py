@@ -158,6 +158,10 @@ def test_protected_package_embeds_encrypted_secrets_payload(tmp_path: Path, monk
     resources_dir.mkdir(parents=True)
     (settings_dir / "base.json").write_text('{"app_name": "MyApp"}', encoding="utf-8")
     (settings_dir / "secrets.json").write_text('{"api": {"token": "local-secret"}}', encoding="utf-8")
+    (settings_dir / "sign.json").write_text(
+        '{"sign": {"windows": {"password": "signing-secret"}}}',
+        encoding="utf-8",
+    )
     (resources_dir / "logo.png").write_text("png", encoding="utf-8")
 
     freezer = PyInstallerFreezer(FrameworkHookResolver())
@@ -210,6 +214,7 @@ def test_protected_package_embeds_encrypted_secrets_payload(tmp_path: Path, monk
     with zipfile.ZipFile(io.BytesIO(zip_bytes), "r") as archive:
         names = set(archive.namelist())
         assert "settings/base.json" in names
+        assert "settings/sign.json" not in names
         assert "resources/logo.png" in names
         assert ".qyro/secrets.enc" in names
 
@@ -281,3 +286,21 @@ def test_build_command_requires_secrets_json_even_when_resource_protection_is_di
 
     with pytest.raises(QyroError, match="settings/secrets.json is required"):
         freezer.build_command(tmp_path, manifest)
+
+
+def test_build_rejects_signing_configuration_in_secrets_json(tmp_path: Path) -> None:
+    settings_dir = tmp_path / "settings"
+    settings_dir.mkdir(parents=True)
+    secrets_path = settings_dir / "secrets.json"
+    secrets_path.write_text(
+        '{"api_token":"runtime","sign":{"windows":{"password":"wrong-file"}}}',
+        encoding="utf-8",
+    )
+
+    freezer = PyInstallerFreezer(FrameworkHookResolver())
+
+    with pytest.raises(QyroError, match="contains signing configuration"):
+        freezer._encrypt_project_secrets(
+            secrets_source_path=secrets_path,
+            runtime_secret=b"r" * 32,
+        )

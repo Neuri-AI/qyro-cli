@@ -43,6 +43,26 @@ class PyInstallerFreezer(FreezerPort):
     _RESOURCE_KEY_LEN = 32
     _RUNTIME_SECRET_MODULE_STEM = "runtime"
     _SECRETS_FILE_NAME = "secrets.json"
+    _SIGN_FILE_NAME = "sign.json"
+    _SIGNING_SETTING_KEYS = {
+        "sign",
+        "windows_sign_certificate",
+        "windows_sign_pass",
+        "windows_sign_server",
+        "windows_sign_description",
+        "mac_sign_identity",
+        "mac_sign_entitlements",
+        "mac_sign_notarize",
+        "mac_sign_staple",
+        "mac_sign_assess",
+        "mac_sign_notary_profile",
+        "mac_sign_notary_key",
+        "mac_sign_notary_key_id",
+        "mac_sign_notary_issuer",
+        "mac_sign_apple_id",
+        "mac_sign_team_id",
+        "mac_sign_app_password",
+    }
     _SECRETS_ARCHIVE_PATH = ".qyro/secrets.enc"
 
     def __init__(
@@ -398,6 +418,7 @@ class PyInstallerFreezer(FreezerPort):
         package_path = (project_root / manifest.protected_bundle_relative_path).resolve()
         runtime_secret_module_path = self._runtime_secret_binary_path(package_path.parent)
         secrets_source_path = settings_dir / self._SECRETS_FILE_NAME
+        sign_source_path = settings_dir / self._SIGN_FILE_NAME
 
         package_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -406,7 +427,10 @@ class PyInstallerFreezer(FreezerPort):
         if settings_dir.exists() and settings_dir.is_dir():
             for source in sorted(settings_dir.rglob("*")):
                 if source.is_file():
-                    if source.resolve() == secrets_source_path.resolve():
+                    if source.resolve() in {
+                        secrets_source_path.resolve(),
+                        sign_source_path.resolve(),
+                    }:
                         continue
                     rel = source.relative_to(settings_dir).as_posix()
                     entries.append((source, f"settings/{rel}"))
@@ -514,6 +538,16 @@ class PyInstallerFreezer(FreezerPort):
             raise QyroError(
                 "settings/secrets.json must contain a JSON object.",
                 hint="Wrap secret keys under an object at the root of settings/secrets.json.",
+            )
+
+        signing_keys = sorted(self._SIGNING_SETTING_KEYS.intersection(parsed))
+        if signing_keys:
+            raise QyroError(
+                "settings/secrets.json contains signing configuration.",
+                hint=(
+                    "Move these keys to settings/sign.json before building: "
+                    + ", ".join(signing_keys)
+                ),
             )
 
         return encrypt_secrets_payload(raw_text.encode("utf-8"), runtime_secret)
@@ -1118,4 +1152,3 @@ class PyInstallerFreezer(FreezerPort):
                         os.unlink(p)
                     except OSError:
                         pass
-

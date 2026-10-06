@@ -167,6 +167,8 @@ The **Qyro Settings Builder** provides a visual interface for preparing
 application, platform-specific, and release configuration files used by Qyro
 projects.
 
+It is the recommended starting point for creating the non-secret JSON files.
+
 It helps simplify:
 
 - Application settings.
@@ -183,7 +185,12 @@ reviewed before running Qyro CLI commands.
 
 > [!NOTE]
 > The Settings Builder is an auxiliary tool. Always review generated files
-> before building or releasing an application.
+> before building or releasing an application. Create `secrets.json` and
+> `sign.json` locally and never enter real credentials into the web interface.
+
+See the [complete configuration reference](docs/configuration.md) for every
+field, default, precedence rule, platform option, `release.json`, `sign.json`,
+and `secrets.json`.
 
 ---
 
@@ -329,6 +336,11 @@ and `resources/`.
 - Random 12-byte nonce per encryption.
 - Versioned binary payload format (`QYRSEC` header) for future compatibility.
 
+Secrets protection is part of the frozen desktop build even when full
+`settings/` and `resources/` protection is disabled. The plaintext source file
+is excluded; the encrypted payload is packaged for Qyro Engine to decrypt and
+merge at runtime.
+
 Output artifacts inside the app bundle/freeze layout include:
 
 - `.qyro/protected_resources.pak`
@@ -403,8 +415,8 @@ Defaults:
 
 - `install_location`: `programfiles64`
 - `execution_level`: `highest`
-- `icons.install`: `resources/base/icons/install.ico` if the file exists.
-- `icons.uninstall`: `resources/base/icons/uninstall.ico` if the file exists.
+- `icons.install`: `resources/base/install.ico` if the file exists.
+- `icons.uninstall`: `resources/base/uninstall.ico` if the file exists.
 - `welcome_bitmap`: not set by default.
 
 Example:
@@ -414,8 +426,8 @@ Example:
   "bundle": {
     "nsis": {
       "icons": {
-        "install": "resources/base/icons/install.ico",
-        "uninstall": "resources/base/icons/uninstall.ico"
+        "install": "resources/base/install.ico",
+        "uninstall": "resources/base/uninstall.ico"
       },
       "welcome_bitmap": "resources/base/welcome.bmp",
       "install_location": "programfiles64",
@@ -479,7 +491,10 @@ qyro sign \
 
 ## Signing guide
 
-Use `settings/release.json` to configure signing.
+Use the local-only `settings/sign.json` file to configure signing and
+notarization. Qyro loads it only for `qyro sign`, after the release profile,
+and excludes it from frozen applications and protected resource packages.
+Keep release packaging options in `settings/release.json`.
 
 ### Windows signing
 
@@ -487,15 +502,16 @@ Requirements:
 
 - Windows host with `signtool` available in `PATH`.
 - Code-signing certificate file, such as `.pfx`.
-- Certificate password supplied through `settings/secrets.json`.
+- Certificate and password configured in `settings/sign.json`.
 
-Example `settings/release.json`:
+Example `settings/sign.json`:
 
 ```json
 {
   "sign": {
     "windows": {
       "certificate": "src/sign/windows/certificate.pfx",
+      "password": "<certificate-password>",
       "timestamp_server": "https://timestamp.digicert.com",
       "description": "MyApp",
       "url": "https://example.com"
@@ -504,7 +520,9 @@ Example `settings/release.json`:
 }
 ```
 
-Do not commit passwords, tokens, certificates, or private keys.
+Do not commit `settings/sign.json`, certificates, passwords, API keys, or
+private keys. Inject the file from your CI secret store when automating a
+release.
 
 Recommended flow:
 
@@ -533,7 +551,7 @@ Requirements:
 - Entitlements file for Python runtime behavior, recommended for GUI
   applications.
 
-Example:
+Example `settings/sign.json`:
 
 ```json
 {
@@ -541,7 +559,6 @@ Example:
     "mac": {
       "identity": "Developer ID Application: Your Name (TEAMID)",
       "entitlements": "src/sign/mac/entitlements.plist",
-      "target_architecture": "universal2",
       "notary": {
         "enabled": true,
         "staple": true,
@@ -554,8 +571,9 @@ Example:
 ```
 
 Do not commit Apple credentials, API keys, passwords, private keys, or
-credential-bearing configuration to the repository. Use
-`settings/secrets.json` for local secret overrides.
+`settings/sign.json` to the repository. For build architecture, use
+`mac_target_architecture` in `settings/mac.json`; signing credentials remain in
+`settings/sign.json`.
 
 Recommended flow:
 
@@ -583,49 +601,53 @@ Supported notarization authentication options:
 - `key_path` + `key_id` + optional `issuer`
 - `apple_id` + `team_id` + `app_password`
 
-When `sign.mac.identity` and `sign.mac.entitlements` are configured, Qyro
-also forwards them to PyInstaller through `--codesign-identity` and
-`--osx-entitlements-file` during macOS builds.
+`qyro sign` reads `sign.mac.identity`, entitlements, and notarization
+credentials from `settings/sign.json`. The build command does not activate
+that profile.
 
 ---
 
 ## Secret management
 
-Qyro supports a local-only secrets file:
+Qyro supports a local-only secrets file for API keys, service tokens, license
+data, and other protected values that the application needs at runtime:
 
 - `settings/secrets.json`.
 
 Qyro loads base and profile settings first, then applies `secrets.json` as the
 highest-precedence override.
 
-When protected resources are enabled for build, Qyro encrypts
-`settings/secrets.json` with AES-256-GCM and embeds it inside
+During a frozen desktop build, Qyro encrypts `settings/secrets.json` with
+AES-256-GCM and embeds it inside
 `protected_resources.pak` as an internal payload (for example,
 `.qyro/secrets.enc` inside the package ZIP).
 No standalone `.qyro/secrets.json` file is emitted in the distributed app.
+The Engine decrypts the payload in memory and exposes the values through
+`app_settings`, so application code uses the same settings API in source and
+frozen modes.
 
 Example `settings/secrets.json`:
 
 ```json
 {
-  "sign": {
-    "windows": {
-      "password": "<local-secret>"
-    },
-    "mac": {
-      "notary": {
-        "keychain_profile": "QYRO-NOTARY-LOCAL",
-        "app_password": "<local-secret>"
-      }
-    }
-  }
+  "api_url": "https://api.example.com",
+  "api_key": "<application-api-key>",
+  "service_token": "<protected-token>",
+  "license_key": "<local-license>"
 }
 ```
+
+Do not put code-signing or notarization credentials in this file. Qyro encrypts
+and packages its complete object in the client build, because the Engine must
+be able to recover those values at runtime. Put all signing-only values in
+`settings/sign.json`, which is never bundled. The build rejects `sign` and the
+legacy flat signing keys when they appear in `secrets.json`.
 
 Repository safety:
 
 - Never commit `settings/secrets.json`.
-- The repository `.gitignore` includes this path by default.
+- Never commit `settings/sign.json`.
+- Add both paths to `.gitignore` and verify `git status` before committing.
 
 ---
 
@@ -668,6 +690,10 @@ project directory.
 Projects can configure bundle behavior in:
 
 - `settings/release.json` — current layout.
+- `settings/sign.json` — local signing and notarization configuration.
+
+For a field-by-field explanation of bundle, signing, protection, platform, and
+secret options, read the [complete configuration reference](docs/configuration.md).
 
 Example:
 

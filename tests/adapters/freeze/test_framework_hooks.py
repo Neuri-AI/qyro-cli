@@ -68,7 +68,7 @@ def test_framework_hooks_skip_plain_assets_when_protection_enabled(tmp_path):
     assert not any(value.endswith(":resources") or value.endswith(";resources") for value in add_data_values)
 
 
-def test_framework_hooks_excludes_plain_secrets_when_protection_disabled(tmp_path):
+def test_framework_hooks_exclude_local_secret_and_signing_files(tmp_path):
     project_root = tmp_path
     settings_dir = project_root / "settings"
     resources_dir = project_root / "resources"
@@ -76,6 +76,10 @@ def test_framework_hooks_excludes_plain_secrets_when_protection_disabled(tmp_pat
     resources_dir.mkdir(parents=True)
     (settings_dir / "base.json").write_text("{}", encoding="utf-8")
     (settings_dir / "secrets.json").write_text('{"password":"local"}', encoding="utf-8")
+    (settings_dir / "sign.json").write_text(
+        '{"sign":{"windows":{"password":"signing-secret"}}}',
+        encoding="utf-8",
+    )
     (resources_dir / "logo.png").write_text("bin", encoding="utf-8")
 
     resolver = FrameworkHookResolver()
@@ -92,6 +96,7 @@ def test_framework_hooks_excludes_plain_secrets_when_protection_disabled(tmp_pat
 
     assert any("base.json" in value for value in add_data_values)
     assert not any("secrets.json" in value for value in add_data_values)
+    assert not any("sign.json" in value for value in add_data_values)
 
 
 def test_build_command_embeds_protected_bundle_and_runtime_module(tmp_path):

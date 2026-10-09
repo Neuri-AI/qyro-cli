@@ -69,8 +69,9 @@ class SubprocessAppRunner:
 class _PreparedEntryPoint:
     """Context manager retaining a generated source file for one child process."""
 
-    def __init__(self, source_path: str) -> None:
+    def __init__(self, source_path: str, output_dir: Path | None = None) -> None:
         self.source_path = source_path
+        self.output_dir = output_dir
         self._temporary: tempfile.TemporaryDirectory[str] | None = None
 
     def __enter__(self) -> str:
@@ -92,8 +93,15 @@ class _PreparedEntryPoint:
         result = transform_source(text, filename=str(source))
         if result.transformed_calls == 0:
             return self.source_path
-        self._temporary = tempfile.TemporaryDirectory(prefix="qyro-psx-")
-        generated = Path(self._temporary.name) / source.name
+        if self.output_dir is None:
+            self._temporary = tempfile.TemporaryDirectory(prefix="qyro-psx-")
+            directory = Path(self._temporary.name)
+        else:
+            # Freezing needs a stable path for the generated spec and analysis
+            # cache, retained until PyInstaller has finished reading it.
+            directory = self.output_dir
+            directory.mkdir(parents=True, exist_ok=True)
+        generated = directory / source.name
         generated.write_text(result.source, encoding="utf-8")
         return str(generated)
 
@@ -102,9 +110,11 @@ class _PreparedEntryPoint:
             self._temporary.cleanup()
 
 
-def _prepared_psx_entry_point(main_module_path: str) -> _PreparedEntryPoint:
+def _prepared_psx_entry_point(
+    main_module_path: str, *, output_dir: Path | None = None
+) -> _PreparedEntryPoint:
     """Return a one-process static M4B preparation of an entry point."""
-    return _PreparedEntryPoint(main_module_path)
+    return _PreparedEntryPoint(main_module_path, output_dir=output_dir)
 
 
 class UnittestRunner:

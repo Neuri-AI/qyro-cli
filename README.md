@@ -314,7 +314,7 @@ Enable in `settings/release.json`:
     "enabled": true,
     "settings_dir": "settings",
     "resources_dir": "resources",
-    "bundle_path": ".qyro/protected_resources.pak"
+    "bundle_path": ".qyro/resources.pak"
   }
 }
 ```
@@ -326,7 +326,7 @@ When enabled, Qyro:
 - Wraps the resource key with that runtime secret.
 - Embeds the protected package and compiled runtime module into the frozen app.
 
-`protected_resources.pak` keeps its current internal mechanism for `settings/`
+`resources.pak` keeps its current internal mechanism for `settings/`
 and `resources/`.
 
 `settings/secrets.json` is handled separately with authenticated cryptography:
@@ -343,7 +343,7 @@ merge at runtime.
 
 Output artifacts inside the app bundle/freeze layout include:
 
-- `.qyro/protected_resources.pak`
+- `.qyro/resources.pak`
 - `.qyro/runtime*.so` on macOS/Linux or `.qyro/runtime*.pyd` on Windows
 
 Notes:
@@ -619,7 +619,7 @@ highest-precedence override.
 
 During a frozen desktop build, Qyro encrypts `settings/secrets.json` with
 AES-256-GCM and embeds it inside
-`protected_resources.pak` as an internal payload (for example,
+`resources.pak` as an internal payload (for example,
 `.qyro/secrets.enc` inside the package ZIP).
 No standalone `.qyro/secrets.json` file is emitted in the distributed app.
 The Engine decrypts the payload in memory and exposes the values through
